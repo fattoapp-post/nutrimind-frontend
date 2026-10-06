@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Configurazione locale (chiavi Supabase)
+env/*.json
+!env/*.example.json

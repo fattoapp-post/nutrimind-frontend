@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+
+import '../../core/app_error.dart';
 import '../../core/food_service.dart';
+import '../../core/models.dart';
 
+/// Dettaglio alimento. Restituisce `true` se è stato aggiunto al diario.
 class FoodDetailScreen extends StatefulWidget {
-  final Map<String, dynamic> foodData;
+  final Food food;
+  final MealSlot? initialSlot;
+  final DateTime? date;
+  final double? initialGrams;
 
-  const FoodDetailScreen({super.key, required this.foodData});
+  const FoodDetailScreen({super.key, required this.food, this.initialSlot, this.date, this.initialGrams});
 
   @override
   State<FoodDetailScreen> createState() => _FoodDetailScreenState();
@@ -24,27 +31,62 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
   static const Color bgC = Color(0xFFFEF6E5);
   static const Color bgG = Color(0xFFFDEEE6);
 
-  int _currentGrams = 170; 
-  late bool _isFavorite;
+  late int _currentGrams;
+  bool _isFavorite = false;
+  bool _savingFavorite = false;
+  bool _adding = false;
 
   @override
   void initState() {
     super.initState();
-    // Inizializza lo stato leggendo se l'alimento è già preferito o no
-    _isFavorite = widget.foodData['isFavorite'] ?? false;
+    _currentGrams = (widget.initialGrams ?? widget.food.servingG ?? 100).round().clamp(10, 5000);
+    _loadFavorite();
+  }
+
+  Future<void> _loadFavorite() async {
+    try {
+      final fav = await FoodService.isFavorite(widget.food.id);
+      if (mounted) setState(() => _isFavorite = fav);
+    } on AppError {
+      // stato preferito non disponibile: resta "Salva"
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    final target = !_isFavorite;
+    setState(() {
+      _isFavorite = target;
+      _savingFavorite = true;
+    });
+    try {
+      await FoodService.setFavorite(widget.food.id, target, defaultGrams: _currentGrams.toDouble());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(target ? '${widget.food.name} salvato nei preferiti!' : 'Rimosso dai preferiti.'),
+          backgroundColor: target ? primaryTeal : Colors.grey,
+        ),
+      );
+    } on AppError catch (e) {
+      if (!mounted) return;
+      setState(() => _isFavorite = !target);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _savingFavorite = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final food = widget.foodData;
-    final bool isVerified = food['verified'] ?? false;
+    final food = widget.food;
+    final bool isVerified = food.isVerified;
 
-    // Ricalcolo in base ai grammi (supponendo dati originali basati su 100g)
+    // I valori in catalogo sono per 100 g
     double ratio = _currentGrams / 100.0;
-    int calcKcal = ((food['kcal'] as num) * ratio).round();
-    int calcP = ((food['p'] as num) * ratio).round();
-    int calcC = ((food['c'] as num) * ratio).round();
-    int calcG = ((food['g'] as num) * ratio).round();
+    int calcKcal = (food.kcal * ratio).round();
+    int calcP = (food.proteinG * ratio).round();
+    int calcC = (food.carbsG * ratio).round();
+    int calcG = (food.fatG * ratio).round();
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -74,8 +116,9 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(food['name'], style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textPrimary)),
-                      Text('${food['brand']} · naturale', style: const TextStyle(fontSize: 16, color: textSecondary)),
+                      Text(food.name, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textPrimary)),
+                      if (food.subtitle.isNotEmpty)
+                        Text(food.subtitle, style: const TextStyle(fontSize: 16, color: textSecondary)),
                     ],
                   ),
                 ),
@@ -154,13 +197,18 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: const Color(0xFFF3F9F8), borderRadius: BorderRadius.circular(16)),
-              child: const Row(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.verified_user_outlined, color: primaryTeal),
-                  SizedBox(width: 12),
+                  Icon(isVerified ? Icons.verified_user_outlined : Icons.info_outline, color: primaryTeal),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Text('Valori verificati sul prodotto. Controlla sempre la confezione in caso di variazioni.', style: TextStyle(color: textPrimary)),
+                    child: Text(
+                      isVerified
+                          ? 'Valori verificati sul prodotto. Controlla sempre la confezione in caso di variazioni.'
+                          : 'Valori non ancora verificati. Controlla la confezione prima di registrare.',
+                      style: const TextStyle(color: textPrimary),
+                    ),
                   ),
                 ],
               ),
@@ -177,19 +225,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
               // Tasto dinamico: Salva / Salvato
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _isFavorite = !_isFavorite; // Inverte lo stato
-                    });
-                    FoodService.toggleFavorite(food['id'] ?? '0', _isFavorite);
-                    
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(_isFavorite ? '${food['name']} salvato nei preferiti!' : 'Rimosso dai preferiti.'),
-                        backgroundColor: _isFavorite ? primaryTeal : Colors.grey,
-                      ),
-                    );
-                  },
+                  onPressed: _savingFavorite ? null : _toggleFavorite,
                   icon: Icon(
                     _isFavorite ? Icons.bookmark : Icons.bookmark_border, 
                     color: _isFavorite ? Colors.white : primaryTeal
@@ -211,9 +247,9 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showMealSelectionSheet(context, food),
+                  onPressed: _adding ? null : () => _showMealSelectionSheet(context, food),
                   icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text('Aggiungi', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  label: Text(_adding ? 'Attendi...' : 'Aggiungi', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryTeal,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -289,9 +325,31 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     );
   }
 
-  void _showMealSelectionSheet(BuildContext context, Map<String, dynamic> food) {
-    final meals = ['Colazione', 'Spuntino', 'Pranzo', 'Merenda', 'Cena'];
-    
+  Future<void> _addToDiary(MealSlot slot) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _adding = true);
+    try {
+      await FoodService.logMeal(
+        food: widget.food,
+        slot: slot,
+        grams: _currentGrams.toDouble(),
+        date: widget.date ?? DateTime.now(),
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      messenger.showSnackBar(
+        SnackBar(content: Text('Aggiunto a ${slot.label}!'), backgroundColor: Colors.green),
+      );
+    } on AppError catch (e) {
+      if (!mounted) return;
+      setState(() => _adding = false);
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  void _showMealSelectionSheet(BuildContext context, Food food) {
+    final initial = widget.initialSlot ?? MealSlot.forNow();
+
     showModalBottomSheet(
       context: context,
       backgroundColor: bgColor,
@@ -306,18 +364,15 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             children: [
               const Text('Aggiungi al diario', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              ...meals.map((meal) => ListTile(
-                title: Text(meal, style: const TextStyle(color: textPrimary)),
-                trailing: const Icon(Icons.add_circle_outline, color: primaryTeal),
+              ...MealSlot.values.map((slot) => ListTile(
+                title: Text(
+                  slot.label,
+                  style: TextStyle(color: textPrimary, fontWeight: slot == initial ? FontWeight.bold : FontWeight.normal),
+                ),
+                trailing: Icon(slot == initial ? Icons.add_circle : Icons.add_circle_outline, color: primaryTeal),
                 onTap: () {
-                  FoodService.addFoodToDiary(food, meal, _currentGrams);
-                  
-                  Navigator.pop(bottomSheetContext); 
-                  Navigator.pop(context); 
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Aggiunto a $meal!'), backgroundColor: Colors.green),
-                  );
+                  Navigator.pop(bottomSheetContext);
+                  _addToDiary(slot);
                 },
               )),
             ],

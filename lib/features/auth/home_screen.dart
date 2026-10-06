@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/app_error.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
 import '../../core/food_service.dart';
+import '../../core/models.dart';
+import '../food/food_detail_screen.dart';
 import '../food/scanner_screen.dart';
+import '../food/search_food_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,42 +27,119 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _userName = 'Utente';
   late DateTime _today;
+  late DateTime _selectedDate;
 
-  int currentKcal = 0; int maxKcal = 2000; 
+  int currentKcal = 0; int maxKcal = 2000;
   int currentP = 0; int maxP = 140;
   int currentC = 0; int maxC = 220;
   int currentG = 0; int maxG = 65;
+  bool _hasPlan = false;
 
-  List<Map<String, dynamic>> _diaryEntries = [];
+  List<DiaryEntry> _diaryEntries = [];
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _today = DateTime.now();
+    _selectedDate = _today;
     _loadUserData();
     _loadDiaryData();
   }
 
-  void _loadUserData() {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      setState(() {
-        _userName = user.userMetadata?['name'] ?? 
-                    user.email?.split('@')[0].capitalize() ?? 'Utente';
-      });
-    }
+  Future<void> _loadUserData() async {
+    final name = await loadDisplayName();
+    if (mounted) setState(() => _userName = name);
   }
 
   Future<void> _loadDiaryData() async {
-    final entries = await FoodService.getDiaryEntries();
-    if (mounted) {
+    final date = _selectedDate;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final results = await Future.wait([
+        FoodService.getDiaryEntries(date),
+        FoodService.getDailyTargets(date),
+      ]);
+      if (!mounted || date != _selectedDate) return;
+      final entries = results[0] as List<DiaryEntry>;
+      final targets = results[1] as DailyTargets;
       setState(() {
         _diaryEntries = entries;
-        currentKcal = entries.fold(0, (sum, item) => sum + (item['kcal'] as int));
-        currentP = entries.fold(0, (sum, item) => sum + (item['p'] as int));
-        currentC = entries.fold(0, (sum, item) => sum + (item['c'] as int));
-        currentG = entries.fold(0, (sum, item) => sum + (item['g'] as int));
+        currentKcal = entries.fold(0.0, (sum, e) => sum + e.kcal).round();
+        currentP = entries.fold(0.0, (sum, e) => sum + e.proteinG).round();
+        currentC = entries.fold(0.0, (sum, e) => sum + e.carbsG).round();
+        currentG = entries.fold(0.0, (sum, e) => sum + e.fatG).round();
+        maxKcal = targets.kcal.round();
+        maxP = targets.proteinG.round();
+        maxC = targets.carbsG.round();
+        maxG = targets.fatG.round();
+        _hasPlan = targets.fromPlan;
       });
+    } on AppError catch (e) {
+      if (mounted && date == _selectedDate) setState(() => _error = e.message);
+    } finally {
+      if (mounted && date == _selectedDate) setState(() => _loading = false);
+    }
+  }
+
+  void _selectDate(DateTime date) {
+    if (DateUtils.isSameDay(date, _selectedDate)) return;
+    setState(() => _selectedDate = date);
+    _loadDiaryData();
+  }
+
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _openSearch(MealSlot slot) async {
+    final added = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => SearchFoodScreen(slot: slot, date: _selectedDate)),
+    );
+    if (added == true) _loadDiaryData();
+  }
+
+  Future<void> _openScanner(MealSlot slot) async {
+    final barcode = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (context) => const ScannerScreen()),
+    );
+    if (barcode == null || !mounted) return;
+
+    _showSnack('Cerco il prodotto...');
+    try {
+      final food = await FoodService.getFoodByBarcode(barcode);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      if (food == null) {
+        _showSnack('Prodotto non trovato. Prova a cercarlo per nome.');
+        return;
+      }
+      final added = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => FoodDetailScreen(food: food, initialSlot: slot, date: _selectedDate)),
+      );
+      if (added == true) _loadDiaryData();
+    } on AppError catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      _showSnack(e.message);
+    }
+  }
+
+  Future<void> _deleteEntry(DiaryEntry entry) async {
+    try {
+      await FoodService.deleteDiaryEntry(entry.id);
+      if (!mounted) return;
+      _showSnack('${entry.name} rimosso.');
+      _loadDiaryData();
+    } on AppError catch (e) {
+      if (mounted) _showSnack(e.message);
     }
   }
 
@@ -69,11 +149,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${days[date.weekday - 1]} ${date.day} ${months[date.month - 1]}';
   }
 
-  void _showAddMenu(String initialMeal) {
+  static const Color _sheetStroke = Color(0xFFE5E7EB);
+  static const Color _sheetIconBg = Color(0xFFE6F4F1);
+  static const Color _sheetTextPrimary = Color(0xFF1F2937);
+
+  void _showAddMenu(MealSlot slot) {
     const Color sheetBg = Color(0xFFFBFBFB);
-    const Color strokeColor = Color(0xFFE5E7EB);
-    const Color iconBg = Color(0xFFE6F4F1);
-    const Color textPrimary = Color(0xFF1F2937);
+    const Color textPrimary = _sheetTextPrimary;
     const Color textLight = Color(0xFF6B7280);
 
     showModalBottomSheet(
@@ -93,47 +175,51 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Aggiungi al diario', style: TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+                  Text('Aggiungi a ${slot.label}', style: const TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
                   IconButton(icon: const Icon(Icons.close, color: textLight), onPressed: () => Navigator.pop(context))
                 ],
               ),
               const SizedBox(height: 16),
-              
-              InkWell(
-                onTap: () {
-                  Navigator.pop(context); 
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ScannerScreen()))
-                    .then((barcode) {
-                       if(barcode != null) {
-                          _loadDiaryData();
-                       }
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: strokeColor)),
-                  child: Row(
-                    children: [
-                      Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.qr_code_scanner, color: primaryTeal)),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Scansiona', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary)),
-                            Text('Codice a barre', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.chevron_right, color: Colors.grey),
-                    ],
-                  ),
-                ),
-              ),
+
+              _buildAddOption(Icons.search, 'Cerca', 'Catalogo alimenti', () {
+                Navigator.pop(context);
+                _openSearch(slot);
+              }),
+              const SizedBox(height: 12),
+              _buildAddOption(Icons.qr_code_scanner, 'Scansiona', 'Codice a barre', () {
+                Navigator.pop(context);
+                _openScanner(slot);
+              }),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildAddOption(IconData icon, String title, String subtitle, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: _sheetStroke)),
+        child: Row(
+          children: [
+            Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: _sheetIconBg, borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: primaryTeal)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _sheetTextPrimary)),
+                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 
@@ -142,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: bgColor,
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddMenu('Diario'),
+        onPressed: () => _showAddMenu(MealSlot.forNow()),
         backgroundColor: primaryTeal,
         shape: const CircleBorder(),
         child: const Icon(Icons.add, color: Colors.white, size: 30),
@@ -151,7 +237,10 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: const CustomBottomNav(currentIndex: 0, isDarkMode: true),
       
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: RefreshIndicator(
+          onRefresh: _loadDiaryData,
+          child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,6 +249,16 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
               _buildDynamicCalendar(),
               const SizedBox(height: 24),
+              if (_loading) const LinearProgressIndicator(color: primaryTeal, backgroundColor: cardColor),
+              if (_error != null) ...[
+                Row(
+                  children: [
+                    Expanded(child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
+                    TextButton(onPressed: _loadDiaryData, child: const Text('Riprova', style: TextStyle(color: primaryTeal))),
+                  ],
+                ),
+                const SizedBox(height: 8),
+              ],
               _buildMacrosCard(),
               const SizedBox(height: 16),
               _buildNutritionistNote(),
@@ -170,6 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 40),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -184,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Text('Ciao, $_userName', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(_getFormattedDate(_today), style: const TextStyle(color: textSecondary, fontSize: 14)),
+            Text(_getFormattedDate(_selectedDate), style: const TextStyle(color: textSecondary, fontSize: 14)),
           ],
         ),
         Container(
@@ -206,17 +306,20 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: weekDays.length,
         itemBuilder: (context, index) {
           final date = weekDays[index];
-          final isToday = date.day == _today.day && date.month == _today.month;
+          final isSelected = DateUtils.isSameDay(date, _selectedDate);
           final dayLabel = '${shortDays[date.weekday - 1]} ${date.day}';
-          return Container(
-            width: 50, margin: const EdgeInsets.only(right: 12),
-            decoration: BoxDecoration(
-              color: isToday ? primaryTeal : cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: isToday ? null : Border.all(color: borderColor),
+          return GestureDetector(
+            onTap: () => _selectDate(date),
+            child: Container(
+              width: 50, margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? primaryTeal : cardColor,
+                borderRadius: BorderRadius.circular(16),
+                border: isSelected ? null : Border.all(color: borderColor),
+              ),
+              alignment: Alignment.center,
+              child: Text(dayLabel, style: TextStyle(color: isSelected ? Colors.white : textSecondary, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
             ),
-            alignment: Alignment.center,
-            child: Text(dayLabel, style: TextStyle(color: isToday ? Colors.white : textSecondary, fontWeight: isToday ? FontWeight.bold : FontWeight.normal)),
           );
         },
       ),
@@ -249,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProgressBar(String label, int current, int max, Color color) {
-    double percent = current / max;
+    double percent = max > 0 ? current / max : 0;
     if (percent > 1.0) percent = 1.0;
     if (percent < 0.0) percent = 0.0;
     return Column(
@@ -284,43 +387,46 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildNutritionistNote() {
-    return const Row(
+    return Row(
       children: [
-        Icon(Icons.shield_outlined, color: primaryTeal, size: 18),
-        SizedBox(width: 8),
-        Text('Piano definito dal nutrizionista', style: TextStyle(color: primaryTeal, fontSize: 14, fontWeight: FontWeight.w500)),
+        Icon(_hasPlan ? Icons.shield_outlined : Icons.info_outline, color: primaryTeal, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          _hasPlan ? 'Piano definito dal nutrizionista' : 'Nessun piano attivo · obiettivi indicativi',
+          style: const TextStyle(color: primaryTeal, fontSize: 14, fontWeight: FontWeight.w500),
+        ),
       ],
     );
   }
 
   Widget _buildMealsList() {
+    // Lo spuntino serale compare solo se ha voci registrate
+    final slots = MealSlot.values
+        .where((s) => s != MealSlot.eveningSnack || _diaryEntries.any((e) => e.slot == s))
+        .toList();
     return Column(
       children: [
-        _buildMealRow('Colazione', '08:00'),
-        const SizedBox(height: 12),
-        _buildMealRow('Spuntino', '11:00'),
-        const SizedBox(height: 12),
-        _buildMealRow('Pranzo', '13:00'),
-        const SizedBox(height: 12),
-        _buildMealRow('Merenda', '16:30'),
-        const SizedBox(height: 12),
-        _buildMealRow('Cena', '20:00'),
+        for (var i = 0; i < slots.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          _buildMealRow(slots[i]),
+        ],
       ],
     );
   }
 
-  Widget _buildMealRow(String mealName, String time) {
-    final mealItems = _diaryEntries.where((e) => e['meal'] == mealName).toList();
+  Widget _buildMealRow(MealSlot slot) {
+    final mealItems = _diaryEntries.where((e) => e.slot == slot).toList();
     final bool isEmpty = mealItems.isEmpty;
-    
-    int kcal = mealItems.fold(0, (sum, item) => sum + (item['kcal'] as int));
-    int p = mealItems.fold(0, (sum, item) => sum + (item['p'] as int));
-    int c = mealItems.fold(0, (sum, item) => sum + (item['c'] as int));
-    int g = mealItems.fold(0, (sum, item) => sum + (item['g'] as int));
+
+    int kcal = mealItems.fold(0.0, (sum, e) => sum + e.kcal).round();
+    int p = mealItems.fold(0.0, (sum, e) => sum + e.proteinG).round();
+    int c = mealItems.fold(0.0, (sum, e) => sum + e.carbsG).round();
+    int g = mealItems.fold(0.0, (sum, e) => sum + e.fatG).round();
 
     return _buildMealCard(
-      time: time,
-      title: mealName,
+      slot: slot,
+      time: slot.time,
+      title: slot.label,
       kcal: kcal,
       p: p,
       c: c,
@@ -332,12 +438,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildMealCard({
+    required MealSlot slot,
     required String time,
     required String title,
     int? kcal, int? p, int? c, int? g,
     bool isEmpty = false,
     bool hasDot = false,
-    required List<Map<String, dynamic>> addedItems,
+    required List<DiaryEntry> addedItems,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -346,7 +453,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            onTap: () => _showAddMenu(title), 
+            onTap: () => _showAddMenu(slot),
             child: Row(
               crossAxisAlignment: isEmpty ? CrossAxisAlignment.center : CrossAxisAlignment.start,
               children: [
@@ -390,7 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (isEmpty) 
                   const Icon(Icons.add_circle_outline, color: textSecondary)
                 else 
-                  Text('${kcal} kcal', style: const TextStyle(color: textSecondary, fontSize: 14)),
+                  Text('$kcal kcal', style: const TextStyle(color: textSecondary, fontSize: 14)),
               ],
             ),
           ),
@@ -406,24 +513,25 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAddedFoodItem(Map<String, dynamic> item) {
+  Widget _buildAddedFoodItem(DiaryEntry item) {
     return InkWell(
       onTap: () {
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
+          builder: (dialogContext) => AlertDialog(
             backgroundColor: cardColor,
-            title: Text('Modifica ${item['name']}', style: const TextStyle(color: Colors.white)),
-            content: Text('Attualmente: ${item['grams']}g', style: const TextStyle(color: textSecondary)),
+            title: Text('Modifica ${item.name}', style: const TextStyle(color: Colors.white)),
+            content: Text('Attualmente: ${item.grams.round()}g', style: const TextStyle(color: textSecondary)),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
+                  _deleteEntry(item);
                 },
                 child: const Text('Rimuovi', style: TextStyle(color: Colors.red)),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Annulla', style: TextStyle(color: primaryTeal)),
               ),
             ],
@@ -441,7 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${item['name']} · ${item['grams']}g',
+                    '${item.name} · ${item.grams.round()}g',
                     style: const TextStyle(color: Colors.white, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
@@ -449,15 +557,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     spacing: 8,
                     runSpacing: 4,
                     children: [
-                      Text('P: ${item['p']}g', style: const TextStyle(color: colorP, fontSize: 11)),
-                      Text('C: ${item['c']}g', style: const TextStyle(color: colorC, fontSize: 11)),
-                      Text('G: ${item['g']}g', style: const TextStyle(color: colorG, fontSize: 11)),
+                      Text('P: ${item.proteinG.round()}g', style: const TextStyle(color: colorP, fontSize: 11)),
+                      Text('C: ${item.carbsG.round()}g', style: const TextStyle(color: colorC, fontSize: 11)),
+                      Text('G: ${item.fatG.round()}g', style: const TextStyle(color: colorG, fontSize: 11)),
                     ],
                   ),
                 ],
               ),
             ),
-            Text('${item['kcal']} kcal', style: const TextStyle(color: Colors.white, fontSize: 14)),
+            Text('${item.kcal.round()} kcal', style: const TextStyle(color: Colors.white, fontSize: 14)),
           ],
         ),
       ),
@@ -479,11 +587,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
-
-extension StringExtension on String {
-    String capitalize() {
-      if (isEmpty) return this;
-      return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
-    }
 }

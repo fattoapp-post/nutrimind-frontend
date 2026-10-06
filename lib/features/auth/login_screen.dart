@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/app_error.dart';
+import '../../core/supabase.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     setState(() => _loading = true);
-    final auth = Supabase.instance.client.auth;
+    final auth = supabase.auth;
     try {
       if (_isSignUp) {
         await auth.signUp(
@@ -44,11 +46,9 @@ class _LoginScreenState extends State<LoginScreen> {
           password: _password.text,
         );
       }
-    } on AuthException catch (e) {
-      if (mounted) _show(e.message);
     } catch (e) {
-      debugPrint('ERRORE LOGIN: $e');
-      if (mounted) _show('Errore: $e');
+      // I campi restano compilati: l'utente può correggere e riprovare.
+      if (mounted) _show(AppError.from(e).message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

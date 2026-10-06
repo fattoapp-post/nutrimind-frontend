@@ -1,17 +1,30 @@
-# nutrimind
+# NutriMind (app Flutter)
 
-A new Flutter project.
+App mobile di food tracking macro-first. Backend: Supabase (DB, Auth, RPC, Edge Functions).
 
-## Getting Started
+## Configurazione
 
-This project is a starting point for a Flutter application.
+Le chiavi non sono nel codice: vengono passate a build-time.
 
-A few resources to get you started if this is your first Flutter project:
+1. Copia `env/dev.example.json` in `env/dev.json` (ignorato da git).
+2. Inserisci la **anon/publishable key** del progetto DEV
+   (Dashboard Supabase > Project Settings > API).
+   **Mai** la secret/service_role key: l'app si rifiuta di partire se la riceve.
+3. Avvia:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter pub get
+flutter run --dart-define-from-file=env/dev.json
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Per PROD crea `env/prod.json` con URL e chiave di `ynnlfxgehbtlneiknrfr`.
+
+## Integrazione Supabase
+
+- Client unico: `lib/core/supabase.dart`.
+- Accesso ai dati: `lib/core/food_service.dart` (solo RPC e tabelle protette da RLS).
+- Errori normalizzati: `lib/core/app_error.dart` (messaggi per 401/403/404/429/5xx,
+  refresh della sessione una volta dopo un 401).
+- Barcode: `get_food_by_barcode` → se assente, Edge Function `import-off-barcode`
+  → rilettura con `get_food`. Open Food Facts non viene mai chiamato dall'app.
+- Ricerca: `search_foods` con debounce di 500 ms.
