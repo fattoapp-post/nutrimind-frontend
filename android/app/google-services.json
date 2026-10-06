@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "788925422004",
+    "project_id": "nutrimind-f9d35",
+    "storage_bucket": "nutrimind-f9d35.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:788925422004:android:e3fd951cfd8df10cd1fae1",
+        "android_client_info": {
+          "package_name": "com.fattoappost.appname"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5tkQMdj49Kmv-0LtdM_4LVeTzUSk8gxE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:788925422004:android:b671085aced16d8dd1fae1",
+        "android_client_info": {
+          "package_name": "com.fattoappost.nutrimind"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5tkQMdj49Kmv-0LtdM_4LVeTzUSk8gxE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
