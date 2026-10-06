@@ -84,7 +84,7 @@ class FoodService {
       if (favorite) {
         await supabase.rpc('add_favorite_food', params: {
           'p_food_id': foodId,
-          if (defaultGrams != null) 'p_default_grams': defaultGrams,
+          'p_default_grams': ?defaultGrams,
         });
       } else {
         // RLS: l'utente può cancellare solo i propri preferiti.

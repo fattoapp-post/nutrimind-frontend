@@ -168,7 +168,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
           Icon(icon, size: 48, color: textSecondary),
           const SizedBox(height: 16),
           Text(text, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary, fontSize: 16)),
-          if (action != null) action,
+          ?action,
         ],
       ),
     );

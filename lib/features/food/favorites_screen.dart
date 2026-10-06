@@ -273,18 +273,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       ),
     );
   }
-
-  Widget _buildVerificationBadge(bool isVerified) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: isVerified ? const Color(0xFFE6F4F1) : Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-      child: Row(
-        children: [
-          Icon(isVerified ? Icons.verified_outlined : Icons.info_outline, size: 12, color: isVerified ? primaryTeal : textSecondary),
-        ],
-      ),
-    );
-  }
 }
 
 class FoodSearchDelegate extends SearchDelegate {

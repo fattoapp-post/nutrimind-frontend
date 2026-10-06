@@ -12,7 +12,7 @@ Future<void> main() async {
   AppConfig.validate();
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
+    publishableKey: AppConfig.supabaseAnonKey,
   );
 
   runApp(const ProviderScope(child: NutriMindApp()));

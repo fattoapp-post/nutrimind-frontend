@@ -375,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 8),
         Stack(
           children: [
-            Container(height: 8, width: double.infinity, decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(4))),
+            Container(height: 8, width: double.infinity, decoration: BoxDecoration(color: color.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4))),
             FractionallySizedBox(
               widthFactor: percent,
               child: Container(height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4))),
