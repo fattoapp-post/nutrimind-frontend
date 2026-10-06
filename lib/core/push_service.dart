@@ -8,9 +8,12 @@ import 'supabase.dart';
 
 /// Notifiche push con Firebase Cloud Messaging.
 ///
-/// La configurazione arriva da `--dart-define-from-file` (chiavi FIREBASE_*
-/// in env/dev.json). Se manca, il push resta disattivato e l'app continua
-/// a funzionare con le notifiche in-app.
+/// Configurazione per piattaforma (l'app ID Firebase è diverso per ognuna):
+/// - web: chiavi FIREBASE_* passate con `--dart-define-from-file`;
+/// - Android: `android/app/google-services.json`, letto dal plugin Gradle;
+/// - iOS: `ios/Runner/GoogleService-Info.plist` (non ancora presente).
+/// Se manca, il push resta disattivato e l'app continua a funzionare con
+/// le notifiche in-app.
 class PushService {
   static const _apiKey = String.fromEnvironment('FIREBASE_API_KEY');
   static const _appId = String.fromEnvironment('FIREBASE_APP_ID');
@@ -21,7 +24,7 @@ class PushService {
   // Chiave VAPID (Cloud Messaging > Certificati push web), solo per il web
   static const _vapidKey = String.fromEnvironment('FIREBASE_VAPID_KEY');
 
-  static bool get isConfigured =>
+  static bool get _hasWebConfig =>
       _apiKey.isNotEmpty && _appId.isNotEmpty && _senderId.isNotEmpty && _projectId.isNotEmpty;
 
   static bool _initialized = false;
@@ -33,18 +36,24 @@ class PushService {
   static Stream<RemoteMessage> get onForegroundMessage => _foreground.stream;
 
   static Future<void> init() async {
-    if (!isConfigured || _initialized) return;
+    if (_initialized) return;
+    if (kIsWeb && !_hasWebConfig) return;
     try {
-      await Firebase.initializeApp(
-        options: FirebaseOptions(
-          apiKey: _apiKey,
-          appId: _appId,
-          messagingSenderId: _senderId,
-          projectId: _projectId,
-          authDomain: _authDomain.isEmpty ? null : _authDomain,
-          storageBucket: _storageBucket.isEmpty ? null : _storageBucket,
-        ),
-      );
+      if (kIsWeb) {
+        await Firebase.initializeApp(
+          options: FirebaseOptions(
+            apiKey: _apiKey,
+            appId: _appId,
+            messagingSenderId: _senderId,
+            projectId: _projectId,
+            authDomain: _authDomain.isEmpty ? null : _authDomain,
+            storageBucket: _storageBucket.isEmpty ? null : _storageBucket,
+          ),
+        );
+      } else {
+        // Configurazione nativa (google-services.json / GoogleService-Info.plist)
+        await Firebase.initializeApp();
+      }
       FirebaseMessaging.onMessage.listen(_foreground.add);
       _initialized = true;
     } catch (e) {

@@ -1,4 +1,4 @@
-package com.example.nutrimind
+package com.fattoappost.nutrimind
 
 import io.flutter.embedding.android.FlutterActivity
 

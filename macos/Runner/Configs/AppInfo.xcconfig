@@ -8,7 +8,7 @@
 PRODUCT_NAME = nutrimind
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.nutrimind
+PRODUCT_BUNDLE_IDENTIFIER = com.fattoappost.nutrimind
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
