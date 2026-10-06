@@ -1,5 +1,6 @@
 import 'app_error.dart';
 import 'models.dart';
+import 'push_service.dart';
 import 'supabase.dart';
 
 /// Versione dell'informativa accettata quando si concedono consensi.
@@ -15,7 +16,10 @@ class AccountService {
     return id;
   }
 
-  static Future<void> signOut() => supabase.auth.signOut();
+  static Future<void> signOut() async {
+    await PushService.unregisterDevice();
+    await supabase.auth.signOut();
+  }
 
   // --- Profilo ----------------------------------------------------------
 

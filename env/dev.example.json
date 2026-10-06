@@ -1,4 +1,11 @@
 {
   "SUPABASE_URL": "https://tcszsyzpvmsifclziujc.supabase.co",
-  "SUPABASE_ANON_KEY": "<anon o publishable key DEV - Dashboard > Project Settings > API>"
+  "SUPABASE_ANON_KEY": "<anon o publishable key DEV - Dashboard > Project Settings > API>",
+  "FIREBASE_API_KEY": "",
+  "FIREBASE_APP_ID": "",
+  "FIREBASE_MESSAGING_SENDER_ID": "",
+  "FIREBASE_PROJECT_ID": "",
+  "FIREBASE_AUTH_DOMAIN": "",
+  "FIREBASE_STORAGE_BUCKET": "",
+  "FIREBASE_VAPID_KEY": ""
 }

@@ -19,6 +19,24 @@ flutter run --dart-define-from-file=env/dev.json
 
 Per PROD crea `env/prod.json` con URL e chiave di `ynnlfxgehbtlneiknrfr`.
 
+## Notifiche push (Firebase Cloud Messaging)
+
+Opzionali: senza configurazione l'app usa solo le notifiche in-app.
+
+1. Crea un progetto su https://console.firebase.google.com e aggiungi una **web app**
+   (e le app Android/iOS se servono).
+2. Copia i valori della config in `env/dev.json` (`FIREBASE_API_KEY`, `FIREBASE_APP_ID`,
+   `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_DOMAIN`,
+   `FIREBASE_STORAGE_BUCKET`) e, per il web, in `web/firebase-config.js`.
+3. Web: Cloud Messaging > Certificati push web > genera la chiave e mettila in
+   `FIREBASE_VAPID_KEY`.
+4. Backend: Impostazioni progetto > Account di servizio > Genera nuova chiave privata,
+   e salva il JSON intero come secret `FIREBASE_SERVICE_ACCOUNT` delle Edge Functions
+   Supabase (usato da `send-notification`, API FCM HTTP v1).
+
+Dopo il login l'app registra il token del dispositivo in `device_tokens`; al logout
+lo rimuove.
+
 ## Integrazione Supabase
 
 - Client unico: `lib/core/supabase.dart`.

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/config.dart';
+import 'core/push_service.dart';
 import 'core/theme.dart';
 import 'features/auth/auth_gate.dart';
 
@@ -14,6 +15,7 @@ Future<void> main() async {
     url: AppConfig.supabaseUrl,
     publishableKey: AppConfig.supabaseAnonKey,
   );
+  await PushService.init();
 
   runApp(const ProviderScope(child: NutriMindApp()));
 }

@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_error.dart';
 import '../../core/notification_service.dart';
+import '../../core/push_service.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
@@ -57,10 +61,19 @@ class _HomeScreenState extends State<HomeScreen> {
       _loadNotifications();
       _loadComments(_selectedDate);
     });
+    // Push ricevuti con l'app aperta: il sistema non li mostra
+    _pushSub = PushService.onForegroundMessage.listen((message) {
+      final title = message.notification?.title;
+      if (title != null && mounted) _showSnack(title);
+      _loadNotifications();
+    });
   }
+
+  StreamSubscription<RemoteMessage>? _pushSub;
 
   @override
   void dispose() {
+    _pushSub?.cancel();
     NotificationService.unsubscribe(_notificationsChannel);
     super.dispose();
   }
