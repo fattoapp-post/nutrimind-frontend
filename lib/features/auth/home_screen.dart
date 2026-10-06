@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_error.dart';
+import '../../core/notification_service.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
 import '../food/food_detail_screen.dart';
 import '../food/scanner_screen.dart';
 import '../food/search_food_screen.dart';
+import '../notifications/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,6 +39,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hasPlan = false;
 
   List<DiaryEntry> _diaryEntries = [];
+  List<NutritionistComment> _comments = [];
+  int _unreadNotifications = 0;
+  RealtimeChannel? _notificationsChannel;
   bool _loading = true;
   String? _error;
 
@@ -46,6 +52,44 @@ class _HomeScreenState extends State<HomeScreen> {
     _selectedDate = _today;
     _loadUserData();
     _loadDiaryData();
+    _loadNotifications();
+    _notificationsChannel = NotificationService.subscribe(() {
+      _loadNotifications();
+      _loadComments(_selectedDate);
+    });
+  }
+
+  @override
+  void dispose() {
+    NotificationService.unsubscribe(_notificationsChannel);
+    super.dispose();
+  }
+
+  Future<void> _loadNotifications() async {
+    try {
+      final items = await NotificationService.getUnread();
+      if (mounted) setState(() => _unreadNotifications = items.length);
+    } on AppError {
+      // il badge non è essenziale: resta il valore precedente
+    }
+  }
+
+  Future<void> _loadComments(DateTime date) async {
+    try {
+      final comments = await NotificationService.getMyComments(date, date);
+      if (mounted && date == _selectedDate) setState(() => _comments = comments);
+    } on AppError {
+      if (mounted && date == _selectedDate) setState(() => _comments = []);
+    }
+  }
+
+  Future<void> _markCommentRead(NutritionistComment c) async {
+    try {
+      await NotificationService.markCommentRead(c.id);
+      _loadComments(_selectedDate);
+    } on AppError catch (e) {
+      if (mounted) _showSnack(e.message);
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -55,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadDiaryData() async {
     final date = _selectedDate;
+    _loadComments(date);
     setState(() {
       _loading = true;
       _error = null;
@@ -143,6 +188,80 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _openPersonalMeals(MealSlot slot) async {
+    List<PersonalMeal> meals;
+    try {
+      meals = await FoodService.getPersonalMeals();
+    } on AppError catch (e) {
+      if (mounted) _showSnack(e.message);
+      return;
+    }
+    if (!mounted) return;
+    final meal = await showModalBottomSheet<PersonalMeal>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: meals.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Nessun pasto salvato. Tieni premuto su un pasto del diario per salvarlo.'),
+              )
+            : ListView(
+                shrinkWrap: true,
+                children: [
+                  const ListTile(title: Text('Pasti salvati', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+                  for (final m in meals)
+                    ListTile(
+                      leading: const Icon(Icons.bookmark_outline, color: primaryTeal),
+                      title: Text(m.name),
+                      subtitle: m.defaultSlot == null ? null : Text(m.defaultSlot!.label),
+                      onTap: () => Navigator.pop(ctx, m),
+                    ),
+                ],
+              ),
+      ),
+    );
+    if (meal == null) return;
+    try {
+      final count = await FoodService.logPersonalMeal(meal.id, _selectedDate, slot);
+      if (!mounted) return;
+      _showSnack(count == 0 ? 'Il pasto salvato non contiene alimenti.' : '${meal.name} aggiunto a ${slot.label}.');
+      _loadDiaryData();
+    } on AppError catch (e) {
+      if (mounted) _showSnack(e.message);
+    }
+  }
+
+  Future<void> _saveAsPersonalMeal(MealSlot slot, List<DiaryEntry> entries) async {
+    final withFood = entries.where((e) => e.foodId != null).toList();
+    if (withFood.isEmpty) return;
+    final controller = TextEditingController(text: slot.label);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Salva come pasto'),
+        content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Nome')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annulla')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Salva')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name == null || name.isEmpty) return;
+    try {
+      await FoodService.createPersonalMeal(name, withFood, defaultSlot: slot);
+      if (mounted) _showSnack('Pasto "$name" salvato.');
+    } on AppError catch (e) {
+      if (mounted) _showSnack(e.message);
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+    _loadNotifications();
+    _loadComments(_selectedDate);
+  }
+
   String _getFormattedDate(DateTime date) {
     const days = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
     const months = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
@@ -189,6 +308,11 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildAddOption(Icons.qr_code_scanner, 'Scansiona', 'Codice a barre', () {
                 Navigator.pop(context);
                 _openScanner(slot);
+              }),
+              const SizedBox(height: 12),
+              _buildAddOption(Icons.bookmarks_outlined, 'Pasti salvati', 'Registra un pasto ricorrente', () {
+                Navigator.pop(context);
+                _openPersonalMeals(slot);
               }),
             ],
           ),
@@ -262,6 +386,10 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildMacrosCard(),
               const SizedBox(height: 16),
               _buildNutritionistNote(),
+              if (_comments.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                _buildComments(),
+              ],
               const SizedBox(height: 24),
               const Text('I tuoi pasti', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
@@ -271,6 +399,44 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildComments() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: primaryTeal)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(children: [
+            Icon(Icons.chat_bubble_outline, color: primaryTeal, size: 18),
+            SizedBox(width: 8),
+            Text('Note del nutrizionista', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          ]),
+          for (final c in _comments)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (c.slot != null)
+                          Text(c.slot!.label, style: const TextStyle(color: textSecondary, fontSize: 12)),
+                        Text(c.body, style: TextStyle(color: Colors.white, fontWeight: c.isRead ? FontWeight.normal : FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  if (!c.isRead)
+                    TextButton(onPressed: () => _markCommentRead(c), child: const Text('Letto', style: TextStyle(color: primaryTeal))),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -289,7 +455,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         Container(
           decoration: BoxDecoration(color: cardColor, shape: BoxShape.circle, border: Border.all(color: borderColor)),
-          child: IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.white), onPressed: () {}),
+          child: IconButton(
+            tooltip: 'Notifiche',
+            onPressed: _openNotifications,
+            icon: Badge(
+              isLabelVisible: _unreadNotifications > 0,
+              label: Text('$_unreadNotifications'),
+              child: const Icon(Icons.notifications_outlined, color: Colors.white),
+            ),
+          ),
         )
       ],
     );
@@ -454,6 +628,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           InkWell(
             onTap: () => _showAddMenu(slot),
+            onLongPress: isEmpty ? null : () => _saveAsPersonalMeal(slot, addedItems),
             child: Row(
               crossAxisAlignment: isEmpty ? CrossAxisAlignment.center : CrossAxisAlignment.start,
               children: [

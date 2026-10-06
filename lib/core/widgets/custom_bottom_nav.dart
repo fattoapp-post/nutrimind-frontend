@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../features/auth/home_screen.dart';
 import '../../features/food/favorites_screen.dart';
+import '../../features/profile/profile_screen.dart';
 
 class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -52,7 +53,7 @@ class CustomBottomNav extends StatelessWidget {
             index: 2,
             selectedColor: selectedColor,
             unselectedColor: unselectedColor,
-            targetScreen: null, // TODO: Aggiungere Profilo in futuro
+            targetScreen: const ProfileScreen(),
           ),
         ],
       ),

@@ -50,6 +50,27 @@ class FoodService {
     return getFood(foodId);
   }
 
+  /// Ricerca remota su Open Food Facts tramite Edge Function `search-off`.
+  /// Da usare solo su richiesta esplicita, quando il catalogo locale non
+  /// basta: OFF ha limiti di frequenza stretti.
+  static Future<List<OffProduct>> searchOff(String query, {int limit = 10}) {
+    return withSessionRetry(() async {
+      final res = await supabase.functions.invoke('search-off', body: {'query': query, 'limit': limit});
+      final results = ((res.data as Map?)?['results'] as List?) ?? const [];
+      return results
+          .map((r) => OffProduct.fromJson(Map<String, dynamic>.from(r as Map)))
+          .where((p) => p.barcode != null && p.barcode!.isNotEmpty)
+          .toList();
+    });
+  }
+
+  static Future<List<FoodPortion>> getPortions(String foodId) {
+    return withSessionRetry(() async {
+      final rows = await supabase.rpc('get_food_portions', params: {'p_food_id': foodId}) as List;
+      return rows.map((r) => FoodPortion.fromJson(Map<String, dynamic>.from(r as Map))).toList();
+    });
+  }
+
   // --- Preferiti --------------------------------------------------------
 
   static Future<List<FavoriteFood>> getFavorites() {
@@ -127,6 +148,49 @@ class FoodService {
 
   static Future<void> deleteDiaryEntry(String entryId) {
     return withSessionRetry(() => supabase.rpc('delete_diary_entry', params: {'p_entry_id': entryId}));
+  }
+
+  // --- Pasti personali --------------------------------------------------
+
+  static Future<List<PersonalMeal>> getPersonalMeals() {
+    return withSessionRetry(() async {
+      final uid = supabase.auth.currentUser?.id;
+      if (uid == null) return <PersonalMeal>[];
+      final List<Map<String, dynamic>> rows = await supabase
+          .from('personal_meals')
+          .select('id, name, default_slot, use_count')
+          .eq('patient_id', uid)
+          .order('use_count', ascending: false);
+      return rows.map(PersonalMeal.fromJson).toList();
+    });
+  }
+
+  /// Salva le voci di un pasto del diario come pasto personale riusabile.
+  static Future<String> createPersonalMeal(String name, List<DiaryEntry> entries, {MealSlot? defaultSlot}) {
+    return withSessionRetry(() async {
+      final id = await supabase.rpc('create_personal_meal', params: {
+        'p_name': name,
+        'p_items': [
+          for (final e in entries)
+            if (e.foodId != null) {'food_id': e.foodId, 'grams': e.grams},
+        ],
+        'p_default_slot': ?defaultSlot?.value,
+      });
+      return id as String;
+    });
+  }
+
+  /// Registra tutte le voci del pasto personale. Restituisce quante voci
+  /// sono state inserite.
+  static Future<int> logPersonalMeal(String mealId, DateTime date, MealSlot slot) {
+    return withSessionRetry(() async {
+      final count = await supabase.rpc('log_personal_meal', params: {
+        'p_meal_id': mealId,
+        'p_date': isoDate(date),
+        'p_slot': slot.value,
+      });
+      return (count as num?)?.toInt() ?? 0;
+    });
   }
 
   // --- Piano macro ------------------------------------------------------

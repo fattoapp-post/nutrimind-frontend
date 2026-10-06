@@ -34,15 +34,58 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
   String? _error;
   List<Food> _results = [];
 
+  // Ricerca remota su Open Food Facts: solo su richiesta esplicita
+  List<OffProduct>? _offResults;
+  bool _offLoading = false;
+  String? _offError;
+  String? _importingBarcode;
+
   @override
   void dispose() {
     _timer?.cancel();
     super.dispose();
   }
 
+  Future<void> _searchOff() async {
+    final query = _query;
+    setState(() {
+      _offLoading = true;
+      _offError = null;
+    });
+    try {
+      final results = await FoodService.searchOff(query);
+      if (mounted && query == _query) setState(() => _offResults = results);
+    } on AppError catch (e) {
+      if (mounted && query == _query) setState(() => _offError = e.message);
+    } finally {
+      if (mounted && query == _query) setState(() => _offLoading = false);
+    }
+  }
+
+  /// Importa il prodotto nel catalogo locale e apre il record locale.
+  Future<void> _importOff(OffProduct product) async {
+    setState(() => _importingBarcode = product.barcode);
+    try {
+      final food = await FoodService.getFoodByBarcode(product.barcode!);
+      if (!mounted) return;
+      if (food == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Prodotto non disponibile.')));
+        return;
+      }
+      await _open(food);
+    } on AppError catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _importingBarcode = null);
+    }
+  }
+
   void _onChanged(String value) {
     _timer?.cancel();
     _query = value.trim();
+    _offResults = null;
+    _offError = null;
+    _offLoading = false;
     if (_query.length < 2) {
       setState(() {
         _results = [];
@@ -132,31 +175,78 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
       ));
     }
     if (_query.length < 2) return _buildMessage(Icons.restaurant_menu, 'Cerca un alimento da aggiungere');
-    if (_results.isEmpty && !_loading) return _buildMessage(Icons.search_off, 'Nessun alimento trovato');
 
-    return ListView.separated(
+    return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: _results.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final food = _results[index];
-        return Material(
-          color: cardColor,
-          borderRadius: BorderRadius.circular(16),
-          child: ListTile(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            onTap: () => _open(food),
-            title: Text(food.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: Text(
-              [if (food.subtitle.isNotEmpty) food.subtitle, '${food.kcal.round()} kcal / 100 g'].join(' · '),
-              style: const TextStyle(color: textSecondary),
-            ),
+      children: [
+        if (_results.isEmpty && !_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Text('Nessun alimento nel catalogo', textAlign: TextAlign.center, style: TextStyle(color: textSecondary)),
+          ),
+        for (final food in _results) ...[
+          _tile(
+            title: food.name,
+            subtitle: [if (food.subtitle.isNotEmpty) food.subtitle, '${food.kcal.round()} kcal / 100 g'].join(' · '),
             trailing: food.isVerified
                 ? const Icon(Icons.verified_outlined, color: primaryTeal, size: 18)
                 : const Icon(Icons.chevron_right, color: textSecondary),
+            onTap: () => _open(food),
           ),
-        );
-      },
+          const SizedBox(height: 8),
+        ],
+        if (!_loading) ..._buildOffSection(),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  List<Widget> _buildOffSection() {
+    if (_offResults == null) {
+      return [
+        TextButton.icon(
+          onPressed: _offLoading ? null : _searchOff,
+          icon: _offLoading
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))
+              : const Icon(Icons.travel_explore, color: primaryTeal),
+          label: const Text('Non trovi il prodotto? Cerca su Open Food Facts', style: TextStyle(color: primaryTeal)),
+        ),
+        if (_offError != null)
+          Text(_offError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
+      ];
+    }
+    return [
+      const Padding(
+        padding: EdgeInsets.only(top: 8, bottom: 8),
+        child: Text('Da Open Food Facts', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
+      ),
+      if (_offResults!.isEmpty)
+        const Text('Nessun prodotto trovato.', style: TextStyle(color: textSecondary)),
+      for (final p in _offResults!) ...[
+        _tile(
+          title: p.name,
+          subtitle: [if (p.brand?.isNotEmpty ?? false) p.brand!, '${p.kcal.round()} kcal / 100 g'].join(' · '),
+          trailing: _importingBarcode == p.barcode
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))
+              : const Icon(Icons.download_outlined, color: textSecondary),
+          onTap: _importingBarcode == null ? () => _importOff(p) : null,
+        ),
+        const SizedBox(height: 8),
+      ],
+    ];
+  }
+
+  Widget _tile({required String title, required String subtitle, required Widget trailing, VoidCallback? onTap}) {
+    return Material(
+      color: cardColor,
+      borderRadius: BorderRadius.circular(16),
+      child: ListTile(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        onTap: onTap,
+        title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle, style: const TextStyle(color: textSecondary)),
+        trailing: trailing,
+      ),
     );
   }
 

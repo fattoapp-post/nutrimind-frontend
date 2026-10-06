@@ -41,6 +41,18 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     super.initState();
     _currentGrams = (widget.initialGrams ?? widget.food.servingG ?? 100).round().clamp(10, 5000);
     _loadFavorite();
+    _loadPortions();
+  }
+
+  List<FoodPortion> _portions = [];
+
+  Future<void> _loadPortions() async {
+    try {
+      final portions = await FoodService.getPortions(widget.food.id);
+      if (mounted) setState(() => _portions = portions);
+    } on AppError {
+      // le porzioni sono un aiuto: senza, resta la quantità manuale
+    }
   }
 
   Future<void> _loadFavorite() async {
@@ -188,7 +200,23 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                       SizedBox(width: 8),
                       Text('Macro ricalcolati in tempo reale', style: TextStyle(color: primaryTeal, fontSize: 12)),
                     ],
-                  )
+                  ),
+                  if (_portions.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final p in _portions)
+                          ChoiceChip(
+                            label: Text('${p.label} · ${p.grams.round()} g'),
+                            selected: _currentGrams == p.grams.round(),
+                            selectedColor: const Color(0xFFE6F4F1),
+                            onSelected: (_) => setState(() => _currentGrams = p.grams.round()),
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
