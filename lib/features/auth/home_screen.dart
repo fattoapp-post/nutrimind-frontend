@@ -13,6 +13,8 @@ import '../food/food_detail_screen.dart';
 import '../food/scanner_screen.dart';
 import '../food/search_food_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../nutritionist/create_food_screen.dart';
+import '../shell/patient_shell.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,7 +23,13 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
+  @override
+  int get tabIndex => PatientTab.diary;
+
+  @override
+  void onTabVisible() => _loadDiaryData();
+
   static const Color bgColor = Color(0xFF101817);
   static const Color cardColor = Color(0xFF17221F);
   static const Color borderColor = Color(0xFF1D2C29);
@@ -41,6 +49,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int currentC = 0; int maxC = 220;
   int currentG = 0; int maxG = 65;
   bool _hasPlan = false;
+  String? _planName;
+  Map<MealSlot, double> _kcalBySlot = const {};
 
   List<DiaryEntry> _diaryEntries = [];
   List<NutritionistComment> _comments = [];
@@ -136,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
         maxC = targets.carbsG.round();
         maxG = targets.fatG.round();
         _hasPlan = targets.fromPlan;
+        _planName = targets.planName;
+        _kcalBySlot = targets.kcalBySlot;
       });
     } on AppError catch (e) {
       if (mounted && date == _selectedDate) setState(() => _error = e.message);
@@ -171,16 +183,33 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _showSnack('Cerco il prodotto...');
     try {
-      final food = await FoodService.getFoodByBarcode(barcode);
+      var food = await FoodService.getFoodByBarcode(barcode);
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       if (food == null) {
-        _showSnack('Prodotto non trovato. Prova a cercarlo per nome.');
-        return;
+        // Non è né in catalogo né su Open Food Facts: proponi di inserirlo
+        final create = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Prodotto non trovato'),
+            content: Text('Il codice $barcode non è nel catalogo. Vuoi inserirlo tu copiando i valori dalla confezione?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annulla')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Inserisci')),
+            ],
+          ),
+        );
+        if (create != true || !mounted) return;
+        food = await Navigator.push<Food>(
+          context,
+          MaterialPageRoute(builder: (_) => CreateFoodScreen(personal: true, initialBarcode: barcode)),
+        );
+        if (food == null || !mounted) return;
       }
+      final selected = food;
       final added = await Navigator.push<bool>(
         context,
-        MaterialPageRoute(builder: (_) => FoodDetailScreen(food: food, initialSlot: slot, date: _selectedDate)),
+        MaterialPageRoute(builder: (_) => FoodDetailScreen(food: selected, initialSlot: slot, date: _selectedDate)),
       );
       if (added == true) _loadDiaryData();
     } on AppError catch (e) {
@@ -327,6 +356,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 Navigator.pop(context);
                 _openPersonalMeals(slot);
               }),
+              const SizedBox(height: 12),
+              _buildAddOption(Icons.content_copy_outlined, 'Copia dal giorno prima', '${slot.label} del giorno precedente', () {
+                Navigator.pop(context);
+                _copyFromPreviousDay(slot);
+              }),
             ],
           ),
         );
@@ -371,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const CustomBottomNav(currentIndex: 0, isDarkMode: true),
+      bottomNavigationBar: const CustomBottomNav(currentIndex: PatientTab.diary, isDarkMode: true),
       
       body: SafeArea(
         child: RefreshIndicator(
@@ -578,9 +612,13 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Icon(_hasPlan ? Icons.shield_outlined : Icons.info_outline, color: primaryTeal, size: 18),
         const SizedBox(width: 8),
-        Text(
-          _hasPlan ? 'Piano definito dal nutrizionista' : 'Nessun piano attivo · obiettivi indicativi',
-          style: const TextStyle(color: primaryTeal, fontSize: 14, fontWeight: FontWeight.w500),
+        Expanded(
+          child: Text(
+            _hasPlan
+                ? (_planName == null || _planName!.isEmpty ? 'Piano definito dal nutrizionista' : 'Piano "$_planName" del nutrizionista')
+                : 'Nessun piano attivo · obiettivi indicativi',
+            style: const TextStyle(color: primaryTeal, fontSize: 14, fontWeight: FontWeight.w500),
+          ),
         ),
       ],
     );
@@ -682,10 +720,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                if (isEmpty) 
-                  const Icon(Icons.add_circle_outline, color: textSecondary)
-                else 
-                  Text('$kcal kcal', style: const TextStyle(color: textSecondary, fontSize: 14)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (isEmpty)
+                      const Icon(Icons.add_circle_outline, color: textSecondary)
+                    else
+                      Text('$kcal kcal', style: const TextStyle(color: textSecondary, fontSize: 14)),
+                    if (_kcalBySlot[slot] != null)
+                      Text(
+                        'obiettivo ${_kcalBySlot[slot]!.round()}',
+                        style: const TextStyle(color: textSecondary, fontSize: 11),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -701,31 +749,79 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _editEntry(DiaryEntry item) async {
+    final controller = TextEditingController(text: item.grams.round().toString());
+    final action = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: cardColor,
+        title: Text('Modifica ${item.name}', style: const TextStyle(color: Colors.white)),
+        content: item.foodId == null
+            ? Text('Attualmente: ${item.grams.round()}g', style: const TextStyle(color: textSecondary))
+            : TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Grammi',
+                  labelStyle: TextStyle(color: textSecondary),
+                  suffixText: 'g',
+                ),
+              ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'delete'),
+            child: const Text('Rimuovi', style: TextStyle(color: Colors.red)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Annulla', style: TextStyle(color: textSecondary)),
+          ),
+          if (item.foodId != null)
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'save'),
+              child: const Text('Salva', style: TextStyle(color: primaryTeal)),
+            ),
+        ],
+      ),
+    );
+    final grams = double.tryParse(controller.text.replaceAll(',', '.'));
+    controller.dispose();
+    if (action == 'delete') {
+      await _deleteEntry(item);
+    } else if (action == 'save') {
+      if (grams == null || grams <= 0 || grams > 5000) {
+        _showSnack('Quantità non valida.');
+        return;
+      }
+      if (grams.round() == item.grams.round()) return;
+      try {
+        await FoodService.updateEntryGrams(item, grams, _selectedDate);
+        if (!mounted) return;
+        _showSnack('${item.name} aggiornato a ${grams.round()} g.');
+        _loadDiaryData();
+      } on AppError catch (e) {
+        if (mounted) _showSnack(e.message);
+      }
+    }
+  }
+
+  Future<void> _copyFromPreviousDay(MealSlot slot) async {
+    final from = _selectedDate.subtract(const Duration(days: 1));
+    try {
+      final count = await FoodService.copyMeal(from: from, to: _selectedDate, slot: slot);
+      if (!mounted) return;
+      _showSnack(count == 0 ? 'Nessun alimento in ${slot.label} il giorno prima.' : '$count alimenti copiati in ${slot.label}.');
+      if (count > 0) _loadDiaryData();
+    } on AppError catch (e) {
+      if (mounted) _showSnack(e.message);
+    }
+  }
+
   Widget _buildAddedFoodItem(DiaryEntry item) {
     return InkWell(
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            backgroundColor: cardColor,
-            title: Text('Modifica ${item.name}', style: const TextStyle(color: Colors.white)),
-            content: Text('Attualmente: ${item.grams.round()}g', style: const TextStyle(color: textSecondary)),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _deleteEntry(item);
-                },
-                child: const Text('Rimuovi', style: TextStyle(color: Colors.red)),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Annulla', style: TextStyle(color: primaryTeal)),
-              ),
-            ],
-          ),
-        );
-      },
+      onTap: () => _editEntry(item),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Row(

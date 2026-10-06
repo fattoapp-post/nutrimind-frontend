@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_error.dart';
+import '../../core/food_service.dart';
 import '../../core/nutritionist_service.dart';
 
-/// Nuovo alimento nel catalogo (solo nutrizionisti verificati), con una
-/// porzione opzionale. Valori nutrizionali per 100 g.
+/// Nuovo alimento. Valori nutrizionali per 100 g.
+/// - nutrizionista verificato: entra nel catalogo (create_food), con una
+///   porzione opzionale; restituisce `true`;
+/// - paziente ([personal]): alimento personale non verificato, visibile e
+///   registrabile subito; restituisce il [Food] creato.
 class CreateFoodScreen extends StatefulWidget {
-  const CreateFoodScreen({super.key});
+  final bool personal;
+  final String? initialName;
+  final String? initialBarcode;
+
+  const CreateFoodScreen({super.key, this.personal = false, this.initialName, this.initialBarcode});
 
   @override
   State<CreateFoodScreen> createState() => _CreateFoodScreenState();
@@ -14,9 +22,9 @@ class CreateFoodScreen extends StatefulWidget {
 
 class _CreateFoodScreenState extends State<CreateFoodScreen> {
   final _form = GlobalKey<FormState>();
-  final _name = TextEditingController();
+  late final _name = TextEditingController(text: widget.initialName);
   final _brand = TextEditingController();
-  final _barcode = TextEditingController();
+  late final _barcode = TextEditingController(text: widget.initialBarcode);
   final _kcal = TextEditingController();
   final _protein = TextEditingController();
   final _carbs = TextEditingController();
@@ -52,6 +60,27 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
       return;
     }
     setState(() => _saving = true);
+    final brand = _brand.text.trim().isEmpty ? null : _brand.text.trim();
+    final barcode = _barcode.text.trim().isEmpty ? null : _barcode.text.trim();
+    if (widget.personal) {
+      try {
+        final food = await FoodService.createUserFood(
+          name: _name.text.trim(),
+          brand: brand,
+          barcode: barcode,
+          kcal: _num(_kcal)!,
+          proteinG: p,
+          carbsG: c,
+          fatG: f,
+        );
+        if (mounted) Navigator.pop(context, food);
+      } on AppError catch (e) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    }
     try {
       final foodId = await NutritionistService.createFood(
         name: _name.text.trim(),
@@ -79,12 +108,20 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuovo alimento')),
+      appBar: AppBar(title: Text(widget.personal ? 'Alimento personale' : 'Nuovo alimento')),
       body: Form(
         key: _form,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (widget.personal)
+              const Card(
+                child: ListTile(
+                  leading: Icon(Icons.info_outline),
+                  title: Text('Copia i valori dalla tabella nutrizionale della confezione.'),
+                  subtitle: Text('L\'alimento resterà "non verificato" finché non viene revisionato.'),
+                ),
+              ),
             TextFormField(
               controller: _name,
               decoration: const InputDecoration(labelText: 'Nome *'),
@@ -110,14 +147,16 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
                 decoration: InputDecoration(labelText: label),
                 validator: _requiredNumber,
               ),
-            const SizedBox(height: 16),
-            const Text('Porzione (opzionale)', style: TextStyle(fontWeight: FontWeight.bold)),
-            TextFormField(controller: _portionLabel, decoration: const InputDecoration(labelText: 'Etichetta (es. 1 mela media)')),
-            TextFormField(
-              controller: _portionGrams,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Grammi'),
-            ),
+            if (!widget.personal) ...[
+              const SizedBox(height: 16),
+              const Text('Porzione (opzionale)', style: TextStyle(fontWeight: FontWeight.bold)),
+              TextFormField(controller: _portionLabel, decoration: const InputDecoration(labelText: 'Etichetta (es. 1 mela media)')),
+              TextFormField(
+                controller: _portionGrams,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Grammi'),
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Salvataggio...' : 'Crea alimento')),
           ],

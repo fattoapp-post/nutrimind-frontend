@@ -125,7 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: widget.showBottomNav ? const CustomBottomNav(currentIndex: 2, isDarkMode: false) : null,
+      bottomNavigationBar: widget.showBottomNav ? const CustomBottomNav(currentIndex: 3, isDarkMode: false) : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: primaryTeal))
           : _error != null

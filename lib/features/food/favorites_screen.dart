@@ -6,6 +6,7 @@ import '../../core/food_service.dart';
 import '../../core/models.dart';
 import 'food_detail_screen.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
+import '../shell/patient_shell.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -14,7 +15,15 @@ class FavoritesScreen extends StatefulWidget {
   State<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
-class _FavoritesScreenState extends State<FavoritesScreen> {
+class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisible {
+  static const _mealsFilter = 3;
+
+  @override
+  int get tabIndex => PatientTab.foods;
+
+  @override
+  void onTabVisible() => _loadDataFromDatabase();
+
   static const Color bgColor = Color(0xFFFAFAFA);
   static const Color primaryTeal = Color(0xFF127B6D);
   static const Color textPrimary = Color(0xFF1F2937);
@@ -29,9 +38,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   static const Color bgG = Color(0xFFFDEEE6);
 
   int _selectedFilterIndex = 0;
-  final List<String> _filters = ['Tutti', 'Più usati', 'Recenti'];
+  final List<String> _filters = ['Tutti', 'Più usati', 'Recenti', 'Pasti salvati'];
 
   List<FavoriteFood> _favoriteFoods = [];
+  List<PersonalMeal> _personalMeals = [];
   bool _isLoading = true;
   String? _error;
 
@@ -47,8 +57,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       _error = null;
     });
     try {
-      final data = await FoodService.getFavorites();
-      if (mounted) setState(() => _favoriteFoods = data);
+      final results = await Future.wait([FoodService.getFavorites(), FoodService.getPersonalMeals()]);
+      if (mounted) {
+        setState(() {
+          _favoriteFoods = results[0] as List<FavoriteFood>;
+          _personalMeals = results[1] as List<PersonalMeal>;
+        });
+      }
     } on AppError catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
@@ -103,7 +118,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const CustomBottomNav(currentIndex: 1, isDarkMode: false),
+      bottomNavigationBar: const CustomBottomNav(currentIndex: PatientTab.foods, isDarkMode: false),
 
       body: Column(
         children: [
@@ -152,6 +167,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         ],
                       ),
                     )
+              : _selectedFilterIndex == _mealsFilter
+                  ? _buildPersonalMeals()
               : _filteredFoods.isEmpty
                   ? const Center(child: Text('Nessun preferito. Cerca un alimento e salvalo.', style: TextStyle(color: textSecondary)))
                   : ListView.builder(
@@ -165,6 +182,70 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildPersonalMeals() {
+    if (_personalMeals.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Nessun pasto salvato.\nNel diario tieni premuto su un pasto per salvarlo e riusarlo.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: textSecondary),
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: _personalMeals.length,
+      itemBuilder: (context, index) {
+        final meal = _personalMeals[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: ListTile(
+            leading: const Icon(Icons.bookmark_outline, color: primaryTeal),
+            title: Text(meal.name, style: const TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
+            subtitle: Text(
+              [if (meal.defaultSlot != null) meal.defaultSlot!.label, 'usato ${meal.useCount} volte'].join(' · '),
+              style: const TextStyle(color: textSecondary),
+            ),
+            trailing: IconButton(
+              tooltip: 'Elimina',
+              icon: const Icon(Icons.delete_outline, color: textSecondary),
+              onPressed: () => _deletePersonalMeal(meal),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _deletePersonalMeal(PersonalMeal meal) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Eliminare "${meal.name}"?'),
+        content: const Text('Le voci già registrate nel diario restano.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annulla')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Elimina')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await FoodService.deletePersonalMeal(meal.id);
+      if (mounted) setState(() => _personalMeals = _personalMeals.where((m) => m.id != meal.id).toList());
+    } on AppError catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   void _openSearch() {

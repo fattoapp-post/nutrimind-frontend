@@ -54,6 +54,24 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _resetPassword() async {
+    final email = _email.text.trim();
+    if (!email.contains('@')) {
+      _show('Inserisci la tua email, poi tocca di nuovo "Password dimenticata?".');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await supabase.auth.resetPasswordForEmail(email);
+      // Stesso messaggio anche se l'email non esiste: non si rivela chi è registrato
+      if (mounted) _show('Se l\'email è registrata riceverai un link per reimpostare la password.');
+    } catch (e) {
+      if (mounted) _show(AppError.from(e).message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -105,6 +123,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? 'Attendi...'
                         : (_isSignUp ? 'Registrati' : 'Accedi')),
                   ),
+                  if (!_isSignUp)
+                    TextButton(
+                      onPressed: _loading ? null : _resetPassword,
+                      child: const Text('Password dimenticata?'),
+                    ),
                   TextButton(
                     onPressed: () => setState(() => _isSignUp = !_isSignUp),
                     child: Text(_isSignUp

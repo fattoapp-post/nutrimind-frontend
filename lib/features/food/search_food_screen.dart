@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
+import '../nutritionist/create_food_screen.dart';
 import 'food_detail_screen.dart';
 
 /// Ricerca nel catalogo locale. Restituisce `true` se un alimento è stato
@@ -78,6 +79,14 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     } finally {
       if (mounted) setState(() => _importingBarcode = null);
     }
+  }
+
+  Future<void> _createPersonalFood() async {
+    final food = await Navigator.push<Food>(
+      context,
+      MaterialPageRoute(builder: (_) => CreateFoodScreen(personal: true, initialName: _query)),
+    );
+    if (food != null && mounted) await _open(food);
   }
 
   void _onChanged(String value) {
@@ -196,6 +205,12 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
           const SizedBox(height: 8),
         ],
         if (!_loading) ..._buildOffSection(),
+        if (!_loading)
+          TextButton.icon(
+            onPressed: _createPersonalFood,
+            icon: const Icon(Icons.edit_note, color: textSecondary),
+            label: const Text('Crea un alimento personale', style: TextStyle(color: textSecondary)),
+          ),
         const SizedBox(height: 24),
       ],
     );

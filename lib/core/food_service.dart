@@ -122,15 +122,39 @@ class FoodService {
     required double grams,
     required DateTime date,
   }) {
-    return withSessionRetry(() async {
-      final id = await supabase.rpc('log_meal', params: {
-        'p_entry_date': isoDate(date),
-        'p_meal_slot': slot.value,
-        'p_grams': grams,
-        'p_food_id': food.id,
-      });
-      return id as String;
+    return withSessionRetry(() => _logMeal(food.id, slot, grams, date));
+  }
+
+  static Future<String> _logMeal(String foodId, MealSlot slot, double grams, DateTime date) async {
+    final id = await supabase.rpc('log_meal', params: {
+      'p_entry_date': isoDate(date),
+      'p_meal_slot': slot.value,
+      'p_grams': grams,
+      'p_food_id': foodId,
     });
+    return id as String;
+  }
+
+  /// Cambia i grammi di una voce. Non c'è una RPC di modifica: si registra
+  /// la nuova voce (log_meal ricalcola i macro) e poi si elimina la vecchia,
+  /// così in caso di errore non si perde nulla.
+  static Future<void> updateEntryGrams(DiaryEntry entry, double grams, DateTime date) {
+    final foodId = entry.foodId;
+    if (foodId == null) throw const AppError('Questa voce non può essere modificata.');
+    return withSessionRetry(() async {
+      await _logMeal(foodId, entry.slot, grams, date);
+      await supabase.rpc('delete_diary_entry', params: {'p_entry_id': entry.id});
+    });
+  }
+
+  /// Copia in [to] le voci di [slot] registrate in [from]. Restituisce
+  /// quante voci sono state copiate.
+  static Future<int> copyMeal({required DateTime from, required DateTime to, required MealSlot slot}) async {
+    final source = (await getDiaryEntries(from)).where((e) => e.slot == slot && e.foodId != null).toList();
+    for (final e in source) {
+      await withSessionRetry(() => _logMeal(e.foodId!, slot, e.grams, to));
+    }
+    return source.length;
   }
 
   static Future<List<DiaryEntry>> getDiaryEntries(DateTime date) {
@@ -180,6 +204,11 @@ class FoodService {
     });
   }
 
+  static Future<void> deletePersonalMeal(String mealId) {
+    // RLS: solo i propri pasti
+    return withSessionRetry(() => supabase.from('personal_meals').delete().eq('id', mealId));
+  }
+
   /// Registra tutte le voci del pasto personale. Restituisce quante voci
   /// sono state inserite.
   static Future<int> logPersonalMeal(String mealId, DateTime date, MealSlot slot) {
@@ -209,16 +238,75 @@ class FoodService {
       if (dayTargets.isEmpty) dayTargets = targets.where((t) => t['day_of_week'] == null).toList();
       if (dayTargets.isEmpty) return DailyTargets.fallback;
 
-      double sum(String key) => dayTargets.fold(0.0, (s, t) => s + ((t[key] as num?)?.toDouble() ?? 0));
-      final p = sum('protein_g'), c = sum('carbs_g'), f = sum('fat_g');
-      final hasKcal = dayTargets.every((t) => t['kcal_estimated'] != null);
+      double n(dynamic v) => (v as num?)?.toDouble() ?? 0;
+      double kcalOf(Map<String, dynamic> t) => t['kcal_estimated'] != null
+          ? n(t['kcal_estimated'])
+          : n(t['protein_g']) * 4 + n(t['carbs_g']) * 4 + n(t['fat_g']) * 9;
+      double sum(String key) => dayTargets.fold(0.0, (s, t) => s + n(t[key]));
+
+      final bySlot = <MealSlot, double>{};
+      for (final t in dayTargets) {
+        final slot = MealSlot.fromValue(t['meal_slot'] as String?);
+        bySlot[slot] = (bySlot[slot] ?? 0) + kcalOf(t);
+      }
       return DailyTargets(
-        kcal: hasKcal ? sum('kcal_estimated') : p * 4 + c * 4 + f * 9,
-        proteinG: p,
-        carbsG: c,
-        fatG: f,
+        kcal: dayTargets.fold(0.0, (s, t) => s + kcalOf(t)),
+        proteinG: sum('protein_g'),
+        carbsG: sum('carbs_g'),
+        fatG: sum('fat_g'),
         fromPlan: true,
+        planName: plans.first['name'] as String?,
+        kcalBySlot: bySlot,
       );
+    });
+  }
+
+  /// Aderenza del paziente loggato (Edge Function `analyze-adherence`).
+  static Future<AdherenceSummary> getMyAdherence(DateTime from, DateTime to) {
+    final uid = supabase.auth.currentUser?.id;
+    if (uid == null) throw const AppError('Sessione scaduta. Accedi di nuovo.', status: 401);
+    return withSessionRetry(() async {
+      final res = await supabase.functions.invoke('analyze-adherence', body: {
+        'patient_id': uid,
+        'from_date': isoDate(from),
+        'to_date': isoDate(to),
+      });
+      return AdherenceSummary.fromJson(Map<String, dynamic>.from(res.data as Map));
+    });
+  }
+
+  // --- Alimenti personali -------------------------------------------------
+
+  /// Crea un alimento personale (RLS foods_insert_user: source 'user',
+  /// non verificato). Valori per 100 g.
+  static Future<Food> createUserFood({
+    required String name,
+    String? brand,
+    String? barcode,
+    required double kcal,
+    required double proteinG,
+    required double carbsG,
+    required double fatG,
+    double? servingG,
+  }) {
+    return withSessionRetry(() async {
+      final row = await supabase
+          .from('foods')
+          .insert({
+            'name': name,
+            'brand': ?brand,
+            'barcode': ?barcode,
+            'kcal': kcal,
+            'protein_g': proteinG,
+            'carbs_g': carbsG,
+            'fat_g': fatG,
+            'serving_g': ?servingG,
+            'source': 'user',
+            'verification': 'unverified',
+          })
+          .select()
+          .single();
+      return Food.fromJson(row);
     });
   }
 

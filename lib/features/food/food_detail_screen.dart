@@ -234,13 +234,26 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                     child: Text(
                       isVerified
                           ? 'Valori verificati sul prodotto. Controlla sempre la confezione in caso di variazioni.'
-                          : 'Valori non ancora verificati. Controlla la confezione prima di registrare.',
+                          : food.isUserCreated
+                              ? 'Alimento personale inserito da te: non è ancora stato revisionato.'
+                              : 'Valori non ancora verificati. Controlla la confezione prima di registrare.',
                       style: const TextStyle(color: textPrimary),
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 24),
+            _buildNutritionTable(food),
+            if (food.nutriscoreGrade != null || food.novaGroup != null) ...[
+              const SizedBox(height: 16),
+              _buildScores(food),
+            ],
+            if (food.ingredientsText != null || food.allergensText != null || food.tracesText != null) ...[
+              const SizedBox(height: 16),
+              _buildIngredients(food),
+            ],
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -291,6 +304,148 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
       ),
     );
   }
+
+  /// Valori per 100 g e per la quantità selezionata.
+  Widget _buildNutritionTable(Food food) {
+    final ratio = _currentGrams / 100.0;
+    String fmt(double? v, {int decimals = 1}) => v == null ? '—' : v.toStringAsFixed(decimals);
+    final rows = <(String, double?, String, bool)>[
+      ('Energia', food.kcal, 'kcal', false),
+      ('Proteine', food.proteinG, 'g', false),
+      ('Carboidrati', food.carbsG, 'g', false),
+      ('di cui zuccheri', food.sugarsG, 'g', true),
+      ('Grassi', food.fatG, 'g', false),
+      ('di cui saturi', food.saturatedFatG, 'g', true),
+      ('Fibre', food.fiberG, 'g', false),
+      ('Sale', food.saltG, 'g', false),
+    ];
+    const header = TextStyle(color: textSecondary, fontSize: 12, fontWeight: FontWeight.bold);
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Valori nutrizionali', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
+          if (food.quantityText != null)
+            Text('Confezione: ${food.quantityText}', style: const TextStyle(color: textSecondary)),
+          const SizedBox(height: 12),
+          Table(
+            columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(1), 2: FlexColumnWidth(1)},
+            children: [
+              TableRow(children: [
+                const SizedBox.shrink(),
+                const Text('100 g', textAlign: TextAlign.right, style: header),
+                Text('$_currentGrams g', textAlign: TextAlign.right, style: header),
+              ]),
+              for (final (label, value, unit, indent) in rows)
+                TableRow(children: [
+                  Padding(
+                    padding: EdgeInsets.only(top: 8, left: indent ? 12 : 0),
+                    child: Text(label, style: TextStyle(color: indent ? textSecondary : textPrimary)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('${fmt(value, decimals: unit == 'kcal' ? 0 : 1)} $unit', textAlign: TextAlign.right),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      '${fmt(value == null ? null : value * ratio, decimals: unit == 'kcal' ? 0 : 1)} $unit',
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ]),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScores(Food food) {
+    const nutriColors = {
+      'A': Color(0xFF038141),
+      'B': Color(0xFF85BB2F),
+      'C': Color(0xFFFECB02),
+      'D': Color(0xFFEE8100),
+      'E': Color(0xFFE63E11),
+    };
+    const novaLabels = {
+      1: 'Non trasformato',
+      2: 'Ingredienti culinari',
+      3: 'Trasformato',
+      4: 'Ultra-trasformato',
+    };
+    Widget badge(String title, String value, Color color, String caption) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+            child: Row(children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+                child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
+                  Text(caption, style: const TextStyle(color: textSecondary, fontSize: 12)),
+                ]),
+              ),
+            ]),
+          ),
+        );
+    final grade = food.nutriscoreGrade;
+    final nova = food.novaGroup;
+    return Row(children: [
+      if (grade != null && nutriColors.containsKey(grade))
+        badge('Nutri-Score', grade, nutriColors[grade]!, 'Qualità nutrizionale'),
+      if (grade != null && nova != null) const SizedBox(width: 12),
+      if (nova != null && novaLabels.containsKey(nova))
+        badge('NOVA', '$nova', nova >= 4 ? const Color(0xFFE63E11) : (nova == 3 ? const Color(0xFFEE8100) : primaryTeal), novaLabels[nova]!),
+    ]);
+  }
+
+  Widget _buildIngredients(Food food) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (food.allergensText != null || food.tracesText != null) ...[
+            const Row(children: [
+              Icon(Icons.warning_amber_rounded, color: Color(0xFFEE8100), size: 20),
+              SizedBox(width: 6),
+              Text('Allergeni', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
+            ]),
+            const SizedBox(height: 6),
+            if (food.allergensText != null) Text(_cleanTags(food.allergensText!)),
+            if (food.tracesText != null)
+              Text('Può contenere tracce di: ${_cleanTags(food.tracesText!)}', style: const TextStyle(color: textSecondary)),
+            const SizedBox(height: 12),
+          ],
+          if (food.ingredientsText != null) ...[
+            const Text('Ingredienti', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
+            const SizedBox(height: 6),
+            Text(food.ingredientsText!, style: const TextStyle(color: textPrimary, height: 1.4)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// "en:milk,en:nuts" (tag Open Food Facts) -> "milk, nuts"
+  static String _cleanTags(String raw) => raw
+      .split(',')
+      .map((t) => t.trim().replaceFirst(RegExp(r'^[a-z]{2}:'), '').replaceAll('-', ' '))
+      .where((t) => t.isNotEmpty)
+      .join(', ');
 
   Widget _buildBigMacroCard(String name, String letter, int amount, Color textColor, Color bgColor) {
     return Container(

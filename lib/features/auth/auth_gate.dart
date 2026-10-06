@@ -7,7 +7,7 @@ import '../../core/models.dart';
 import '../../core/push_service.dart';
 import '../../core/supabase.dart';
 import '../nutritionist/patients_screen.dart';
-import 'home_screen.dart';
+import '../shell/patient_shell.dart';
 import 'login_screen.dart';
 
 /// Sessione assente: login. Sessione presente: carica il profilo e apre
@@ -68,7 +68,7 @@ class _RoleRouterState extends State<_RoleRouter> {
           );
         }
         final profile = snapshot.data!;
-        return profile.isNutritionist ? PatientsScreen(profile: profile) : const HomeScreen();
+        return profile.isNutritionist ? PatientsScreen(profile: profile) : const PatientShell();
       },
     );
   }

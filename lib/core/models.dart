@@ -45,6 +45,18 @@ class Food {
   final double fatG;
   final double? servingG;
   final String? servingLabel;
+  // Dettagli nutrizionali e di prodotto (colonne opzionali, 003b/013)
+  final double? fiberG;
+  final double? sugarsG;
+  final double? saturatedFatG;
+  final double? saltG;
+  final String? nutriscoreGrade;
+  final int? novaGroup;
+  final String? ingredientsText;
+  final String? allergensText;
+  final String? tracesText;
+  final String? quantityText;
+  final String? imageUrl;
 
   const Food({
     required this.id,
@@ -60,11 +72,30 @@ class Food {
     required this.fatG,
     this.servingG,
     this.servingLabel,
+    this.fiberG,
+    this.sugarsG,
+    this.saturatedFatG,
+    this.saltG,
+    this.nutriscoreGrade,
+    this.novaGroup,
+    this.ingredientsText,
+    this.allergensText,
+    this.tracesText,
+    this.quantityText,
+    this.imageUrl,
   });
 
   bool get isVerified => verification == 'verified';
 
+  /// Alimento creato da un utente e non ancora revisionato.
+  bool get isUserCreated => source == 'user';
+
   String get subtitle => [brand, servingLabel].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+
+  static String? _text(dynamic v) {
+    final s = v?.toString().trim();
+    return (s == null || s.isEmpty) ? null : s;
+  }
 
   factory Food.fromJson(Map<String, dynamic> json) => Food(
         id: json['id'] as String,
@@ -80,6 +111,17 @@ class Food {
         fatG: _num(json['fat_g']),
         servingG: _numOrNull(json['serving_g']),
         servingLabel: json['serving_label'] as String?,
+        fiberG: _numOrNull(json['fiber_g']),
+        sugarsG: _numOrNull(json['sugars_g']),
+        saturatedFatG: _numOrNull(json['saturated_fat_g']),
+        saltG: _numOrNull(json['salt_g']),
+        nutriscoreGrade: _text(json['nutriscore_grade'])?.toUpperCase(),
+        novaGroup: (json['nova_group'] as num?)?.toInt(),
+        ingredientsText: _text(json['ingredients_text']),
+        allergensText: _text(json['allergens_text']),
+        tracesText: _text(json['traces_text']),
+        quantityText: _text(json['quantity_text']),
+        imageUrl: _text(json['image_front_url']),
       );
 }
 
@@ -144,6 +186,9 @@ class DailyTargets {
   final double carbsG;
   final double fatG;
   final bool fromPlan;
+  final String? planName;
+  /// kcal obiettivo per pasto (solo pasti presenti nel piano).
+  final Map<MealSlot, double> kcalBySlot;
 
   const DailyTargets({
     required this.kcal,
@@ -151,6 +196,8 @@ class DailyTargets {
     required this.carbsG,
     required this.fatG,
     required this.fromPlan,
+    this.planName,
+    this.kcalBySlot = const {},
   });
 
   /// Valori di fallback quando il paziente non ha un piano attivo.
@@ -500,20 +547,94 @@ class DiaryMealWithComments {
 class AdherenceSummary {
   final int totalDays;
   final int loggedDays;
+  final int planDays;
   final int onTargetDays;
   final int adherenceRate;
+  final List<AdherenceDay> days;
 
   const AdherenceSummary({
     required this.totalDays,
     required this.loggedDays,
+    required this.planDays,
     required this.onTargetDays,
     required this.adherenceRate,
+    this.days = const [],
   });
+
+  /// Giorni consecutivi con almeno una registrazione, fino all'ultimo
+  /// giorno del periodo (oggi non registrato non interrompe la serie).
+  int get loggingStreak {
+    var streak = 0;
+    for (var i = days.length - 1; i >= 0; i--) {
+      if (days[i].logged) {
+        streak++;
+      } else if (i != days.length - 1) {
+        break;
+      }
+    }
+    return streak;
+  }
+
+  double get averageKcalLogged {
+    final logged = days.where((d) => d.logged).toList();
+    if (logged.isEmpty) return 0;
+    return logged.fold(0.0, (s, d) => s + d.kcal) / logged.length;
+  }
 
   factory AdherenceSummary.fromJson(Map<String, dynamic> json) => AdherenceSummary(
         totalDays: (json['total_days'] as num?)?.toInt() ?? 0,
         loggedDays: (json['logged_days'] as num?)?.toInt() ?? 0,
+        planDays: (json['plan_days'] as num?)?.toInt() ?? 0,
         onTargetDays: (json['on_target_days'] as num?)?.toInt() ?? 0,
         adherenceRate: (json['adherence_rate'] as num?)?.toInt() ?? 0,
+        days: ((json['daily_breakdown'] as List?) ?? const [])
+            .map((d) => AdherenceDay.fromJson(Map<String, dynamic>.from(d as Map)))
+            .toList(),
+      );
+}
+
+/// Un giorno di `daily_breakdown` di `analyze-adherence`.
+class AdherenceDay {
+  final DateTime date;
+  final bool logged;
+  final bool hasPlan;
+  final bool? onTarget;
+  final double kcal;
+  final double targetKcal;
+  final double protein;
+  final double targetProtein;
+  final double carbs;
+  final double targetCarbs;
+  final double fat;
+  final double targetFat;
+
+  const AdherenceDay({
+    required this.date,
+    required this.logged,
+    required this.hasPlan,
+    this.onTarget,
+    required this.kcal,
+    required this.targetKcal,
+    required this.protein,
+    required this.targetProtein,
+    required this.carbs,
+    required this.targetCarbs,
+    required this.fat,
+    required this.targetFat,
+  });
+
+  factory AdherenceDay.fromJson(Map<String, dynamic> json) => AdherenceDay(
+        date: DateTime.parse(json['date'] as String),
+        logged: (json['logged'] as bool?) ?? false,
+        hasPlan: (json['has_plan'] as bool?) ?? ((json['target_kcal'] as num?) ?? 0) > 0,
+        onTarget: json['on_target'] as bool?,
+        kcal: _num(json['total_kcal']),
+        targetKcal: _num(json['target_kcal']),
+        protein: _num(json['total_protein']),
+        targetProtein: _num(json['target_protein']),
+        carbs: _num(json['total_carbs']),
+        targetCarbs: _num(json['target_carbs']),
+        fat: _num(json['total_fat']),
+        targetFat: _num(json['target_fat']),
       );
 }

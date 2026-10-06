@@ -19,6 +19,24 @@ flutter run --dart-define-from-file=env/dev.json
 
 Per PROD crea `env/prod.json` con URL e chiave di `ynnlfxgehbtlneiknrfr`.
 
+## Funzionalità
+
+**Paziente** (schede Diario · Alimenti · Progressi · Profilo)
+- Diario per giorno: registrazione da ricerca, barcode, pasti salvati o copia dal
+  giorno prima; modifica dei grammi; obiettivi giornalieri e per pasto dal piano.
+- Alimenti: preferiti, pasti salvati, ricerca locale + Open Food Facts su richiesta,
+  alimento personale se il prodotto non esiste; dettaglio con valori completi,
+  Nutri-Score, NOVA, ingredienti e allergeni.
+- Progressi: aderenza al piano, giorni registrati e serie, kcal giornaliere rispetto
+  all'obiettivo, medie dei macro (7 / 30 giorni).
+- Profilo: preferenze e restrizioni, collegamento al nutrizionista, consensi GDPR.
+- Notifiche in-app (realtime) e push FCM; commenti del nutrizionista nel diario.
+
+**Nutrizionista**
+- Pazienti ordinati per attenzione; per ciascuno aderenza, diario con commenti,
+  restrizioni (con consenso), piano attuale, nuovo piano, scollegamento.
+- Codici invito, verifica professionale, nuovi alimenti e porzioni (se verificato).
+
 ## Notifiche push (Firebase Cloud Messaging)
 
 Opzionali: senza configurazione l'app usa solo le notifiche in-app.

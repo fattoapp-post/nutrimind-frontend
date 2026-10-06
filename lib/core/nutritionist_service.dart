@@ -126,6 +126,34 @@ class NutritionistService {
     });
   }
 
+  /// Restrizioni e preferenze del paziente (policy
+  /// patient_settings_select_nutritionist: serve il consenso `profile`).
+  /// Null se non condivise.
+  static Future<PatientSettings?> getPatientSettings(String patientId) {
+    return withSessionRetry(() async {
+      final row = await supabase.from('patient_settings').select().eq('user_id', patientId).maybeSingle();
+      return row == null ? null : PatientSettings.fromJson(row);
+    });
+  }
+
+  /// Piano macro in corso del paziente con i target per pasto.
+  static Future<({String name, DateTime? validFrom, List<Map<String, dynamic>> targets})?> getCurrentPlan(
+    String patientId,
+  ) {
+    return withSessionRetry(() async {
+      final plans = await supabase.rpc('get_current_macro_plan', params: {'p_patient_id': patientId}) as List;
+      if (plans.isEmpty) return null;
+      final plan = Map<String, dynamic>.from(plans.first as Map);
+      final List<Map<String, dynamic>> targets =
+          await supabase.from('macro_plan_targets').select().eq('plan_id', plan['id'] as String);
+      return (
+        name: (plan['name'] as String?) ?? 'Piano',
+        validFrom: DateTime.tryParse(plan['valid_from']?.toString() ?? ''),
+        targets: targets,
+      );
+    });
+  }
+
   /// Edge Function `analyze-adherence`: riepilogo del periodo.
   static Future<AdherenceSummary> analyzeAdherence(String patientId, DateTime from, DateTime to) {
     return withSessionRetry(() async {
