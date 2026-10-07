@@ -198,7 +198,7 @@ class _PublicProfileEditorScreenState extends State<PublicProfileEditorScreen> {
             ),
             TextField(controller: _studio, decoration: const InputDecoration(labelText: 'Studio')),
             TextField(controller: _city, decoration: const InputDecoration(labelText: 'Città')),
-            TextField(controller: _bio, maxLines: 5, maxLength: 2000, decoration: const InputDecoration(labelText: 'Chi sei e come lavori')),
+            TextField(controller: _bio, maxLines: 5, maxLength: 1000, decoration: const InputDecoration(labelText: 'Chi sei e come lavori')),
           ],
         ),
         SectionCard(

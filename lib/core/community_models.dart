@@ -8,13 +8,15 @@ String? _text(dynamic v) {
   return (s == null || s.isEmpty) ? null : s;
 }
 
-/// Obiettivi assegnabili a ricette e piani di base.
+/// Obiettivi assegnabili a ricette e piani di base. I valori sono quelli
+/// ammessi dal vincolo suggested_meals_goal_tags_check: cambiarli fa
+/// rifiutare il salvataggio dal database.
 const goalTagLabels = {
-  'weight_loss': 'Dimagrimento',
-  'muscle_gain': 'Massa muscolare',
-  'maintenance': 'Mantenimento',
-  'performance': 'Sport e performance',
-  'wellness': 'Benessere',
+  'high_protein': 'Ricco di proteine',
+  'low_carb': 'Pochi carboidrati',
+  'low_fat': 'Pochi grassi',
+  'high_fiber': 'Ricco di fibre',
+  'balanced': 'Bilanciato',
 };
 
 /// Specializzazioni mostrate nella vetrina dei nutrizionisti.

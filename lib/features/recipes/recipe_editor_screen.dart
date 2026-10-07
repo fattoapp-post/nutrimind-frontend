@@ -182,10 +182,10 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
       socialError = 'Inserisci un link valido (https://…)';
     }
     setState(() {
-      _titleError = title.isEmpty ? 'Il titolo è obbligatorio' : null;
+      _titleError = title.length < 3 ? 'Il titolo deve avere almeno 3 caratteri' : null;
       _socialError = socialError;
     });
-    if (title.isEmpty || socialError != null) return;
+    if (title.length < 3 || socialError != null) return;
     if (_ingredients.isEmpty) {
       _snack('Aggiungi almeno un ingrediente.');
       return;
@@ -291,7 +291,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
             children: [
               TextField(
                 controller: _title,
-                maxLength: 120,
+                maxLength: 100, // limite del vincolo suggested_meals_title_check
                 textCapitalization: TextCapitalization.sentences,
                 onChanged: (_) {
                   if (_titleError != null) setState(() => _titleError = null);
