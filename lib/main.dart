@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -7,8 +8,16 @@ import 'core/push_service.dart';
 import 'core/theme.dart';
 import 'features/auth/auth_gate.dart';
 
+/// Albero di accessibilità sempre acceso. Sul web Flutter lo costruisce solo
+/// dopo che l'utente ha premuto il pulsante nascosto "Enable accessibility":
+/// con questo flag lo si ha subito, come serve ai test automatici del browser.
+/// Si attiva con `--dart-define=ENABLE_SEMANTICS=true`, mai in produzione:
+/// mantenere l'albero aggiornato ha un costo.
+const _enableSemantics = bool.fromEnvironment('ENABLE_SEMANTICS');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (_enableSemantics) SemanticsBinding.instance.ensureSemantics();
 
   AppConfig.validate();
   await Supabase.initialize(

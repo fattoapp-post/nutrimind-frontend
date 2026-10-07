@@ -137,14 +137,6 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                 _buildVerificationBadge(isVerified),
               ],
             ),
-            const SizedBox(height: 8),
-            const Row(
-              children: [
-                Icon(Icons.shield_outlined, color: primaryTeal, size: 16),
-                SizedBox(width: 4),
-                Text('Piano definito dal nutrizionista', style: TextStyle(color: primaryTeal, fontWeight: FontWeight.w500)),
-              ],
-            ),
             const SizedBox(height: 24),
             
             Row(
@@ -502,7 +494,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
         children: [
           Icon(isVerified ? Icons.verified_outlined : Icons.info_outline, size: 14, color: isVerified ? primaryTeal : textSecondary),
           const SizedBox(width: 6),
-          Text(isVerified ? 'Verificato' : 'Non verific.', style: TextStyle(color: isVerified ? primaryTeal : textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+          Text(isVerified ? 'Verificato' : 'Non verificato', style: TextStyle(color: isVerified ? primaryTeal : textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
         ],
       ),
     );

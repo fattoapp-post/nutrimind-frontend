@@ -454,8 +454,8 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
                     children: [
                       Text(_ingredients[i].food.name,
                           style: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
-                      if (_ingredients[i].food.brand != null)
-                        Text(_ingredients[i].food.brand!,
+                      if (_ingredients[i].food.brandLabel != null)
+                        Text(_ingredients[i].food.brandLabel!,
                             style: const TextStyle(color: textSecondary, fontSize: 12)),
                     ],
                   ),
@@ -709,7 +709,7 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
           contentPadding: EdgeInsets.zero,
           title: Text(f.name, style: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
           subtitle: Text(
-            [if (f.brand != null) f.brand!, '${f.kcal.round()} kcal / 100 g'].join(' · '),
+            [if (f.brandLabel != null) f.brandLabel!, '${f.kcal.round()} kcal / 100 g'].join(' · '),
             style: const TextStyle(color: textSecondary, fontSize: 12),
           ),
           trailing: const Icon(Icons.add_circle_outline, color: primaryTeal),
@@ -737,7 +737,7 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
         ),
         const SizedBox(height: 8),
         Text(food.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textPrimary)),
-        if (food.brand != null) Text(food.brand!, style: const TextStyle(color: textSecondary)),
+        if (food.brandLabel != null) Text(food.brandLabel!, style: const TextStyle(color: textSecondary)),
         const SizedBox(height: 16),
         TextField(
           controller: _grams,

@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, claude_code]
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    name: Analisi e test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.6'
+          channel: stable
+          cache: true
+
+      - run: flutter --version
+      - run: flutter pub get
+
+      # Il controllo della formattazione (`dart format
+      # --set-exit-if-changed`) non c'è ancora: 41 file su 51 non sono
+      # formattati e il riallineamento va fatto in un commit a parte,
+      # altrimenti si mescola con le modifiche di sostanza.
+      - name: Analisi statica
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      # La compilazione usa i valori di esempio: servono solo a far
+      # passare AppConfig.validate(), non comunicano con Supabase.
+      # Le chiavi vere non stanno nel repository.
+      - name: Compilazione web
+        run: flutter build web --dart-define-from-file=env/dev.example.json

@@ -9,13 +9,17 @@ import '../nutritionist/create_food_screen.dart';
 import 'food_detail_screen.dart';
 import 'nutrient_filters_sheet.dart';
 
-/// Ricerca nel catalogo locale. Restituisce `true` se un alimento è stato
+/// Ricerca nel catalogo, con filtri nutrizionali, catalogo esteso e
+/// import da codice a barre. Restituisce `true` se un alimento è stato
 /// aggiunto al diario.
+///
+/// Senza [slot] funziona da semplice consultazione del catalogo: il pasto
+/// lo si sceglie, se serve, dal dettaglio dell'alimento.
 class SearchFoodScreen extends StatefulWidget {
-  final MealSlot slot;
-  final DateTime date;
+  final MealSlot? slot;
+  final DateTime? date;
 
-  const SearchFoodScreen({super.key, required this.slot, required this.date});
+  const SearchFoodScreen({super.key, this.slot, this.date});
 
   @override
   State<SearchFoodScreen> createState() => _SearchFoodScreenState();
@@ -194,7 +198,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
         backgroundColor: bgColor,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          'Aggiungi a ${widget.slot.label}',
+          widget.slot == null ? 'Cerca un alimento' : 'Aggiungi a ${widget.slot!.label}',
           style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         elevation: 0,
@@ -365,7 +369,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
         _tile(
           title: p.name,
           subtitle: [
-            if (p.brand?.isNotEmpty ?? false) p.brand!,
+            if (p.brandLabel != null) p.brandLabel!,
             '${p.kcal.round()} kcal',
             'P ${p.proteinG.round()} · C ${p.carbsG.round()} · G ${p.fatG.round()} g',
           ].join(' · '),

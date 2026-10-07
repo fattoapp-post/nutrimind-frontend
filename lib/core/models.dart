@@ -1,5 +1,22 @@
-double _num(dynamic v) => (v as num?)?.toDouble() ?? 0;
-double? _numOrNull(dynamic v) => (v as num?)?.toDouble();
+/// Numero preso da una risposta del database. I campi `numeric` di
+/// Postgres arrivano di solito come numeri JSON, ma non sempre: un cast
+/// secco andrebbe in errore e farebbe fallire tutta la schermata.
+double? _numOrNull(dynamic v) => switch (v) {
+      num n => n.toDouble(),
+      String s => double.tryParse(s.replaceFirst(',', '.')),
+      _ => null,
+    };
+double _num(dynamic v) => _numOrNull(v) ?? 0;
+
+/// Marca da mostrare accanto al nome di un prodotto. Restituisce null
+/// quando non c'è o quando ripete il nome stesso: nel catalogo esteso
+/// capita spesso ("Nutella" di marca "Nutella") e scrivere due volte la
+/// stessa parola fa solo rumore.
+String? _brandLabel(String? brand, String name) {
+  final b = brand?.trim();
+  if (b == null || b.isEmpty) return null;
+  return b.toLowerCase() == name.trim().toLowerCase() ? null : b;
+}
 
 /// Valori dell'enum `public.meal_slot`.
 enum MealSlot {
@@ -90,7 +107,12 @@ class Food {
   /// Alimento creato da un utente e non ancora revisionato.
   bool get isUserCreated => source == 'user';
 
-  String get subtitle => [brand, servingLabel].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
+  /// Marca da mostrare accanto al nome, oppure null.
+  String? get brandLabel => _brandLabel(brand, name);
+
+  /// Marca e porzione sotto il nome del prodotto.
+  String get subtitle =>
+      [brandLabel, servingLabel].whereType<String>().where((s) => s.isNotEmpty).join(' · ');
 
   static String? _text(dynamic v) {
     final s = v?.toString().trim();
@@ -636,6 +658,9 @@ class OffProduct {
         fatG: _num(json['fat_g']),
         nutriscoreGrade: (json['nutriscore_grade'] as String?)?.toUpperCase(),
       );
+
+  /// Marca da mostrare accanto al nome, oppure null.
+  String? get brandLabel => _brandLabel(brand, name);
 
   /// Rispetta i filtri nutrizionali impostati dall'utente? Il catalogo
   /// esterno non li applica, quindi si filtra qui.

@@ -1,6 +1,12 @@
 import 'models.dart';
 
-double _num(dynamic v) => (v as num?)?.toDouble() ?? 0;
+/// Come in models.dart: un `numeric` che arrivasse come stringa non deve
+/// far fallire la schermata.
+double _num(dynamic v) => switch (v) {
+      num n => n.toDouble(),
+      String s => double.tryParse(s.replaceFirst(',', '.')) ?? 0,
+      _ => 0,
+    };
 DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
 List<String> _strings(dynamic v) => List<String>.from((v as List?) ?? const []);
 String? _text(dynamic v) {
