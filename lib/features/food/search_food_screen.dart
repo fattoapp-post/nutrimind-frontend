@@ -69,6 +69,26 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     }
   }
 
+  static final _barcodePattern = RegExp(r'^[0-9]{8,14}$');
+
+  /// L'utente ha digitato un codice a barre non in catalogo: lo importa.
+  Future<void> _importByBarcode(String barcode) async {
+    setState(() => _importingBarcode = barcode);
+    try {
+      final food = await FoodService.getFoodByBarcode(barcode);
+      if (!mounted || barcode != _query) return;
+      if (food == null) {
+        setState(() => _offResults = const []);
+        return;
+      }
+      await _open(food);
+    } on AppError catch (e) {
+      if (mounted && barcode == _query) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _importingBarcode = null);
+    }
+  }
+
   /// Importa il prodotto nel catalogo locale e apre il record locale.
   Future<void> _importOff(OffProduct product) async {
     setState(() => _importingBarcode = product.barcode);
@@ -139,6 +159,11 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
       final results = await FoodService.searchFoods(query, filters: _filters);
       if (!mounted || query != _query) return;
       setState(() => _results = results);
+      // Un codice a barre digitato a mano: si importa come con lo scanner
+      if (results.isEmpty && !_filters.hasBounds && _barcodePattern.hasMatch(query)) {
+        _importByBarcode(query);
+        return;
+      }
       // Catalogo esteso: solo su ricerca testuale, serve il nome del prodotto
       if (results.length < _extendedThreshold && query.length >= 3 && _offResults == null) {
         _searchOff();
