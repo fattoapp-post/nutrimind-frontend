@@ -433,6 +433,79 @@ class PatientLink {
       );
 }
 
+/// Filtri sui valori nutrizionali per 100 g usati da `search_foods`.
+class NutrientFilters {
+  final double? minProtein;
+  final double? maxProtein;
+  final double? minCarbs;
+  final double? maxCarbs;
+  final double? minFat;
+  final double? maxFat;
+  final double? minKcal;
+  final double? maxKcal;
+
+  /// null | protein_desc | carbs_asc | fat_asc | kcal_asc | kcal_desc
+  final String? sort;
+
+  const NutrientFilters({
+    this.minProtein,
+    this.maxProtein,
+    this.minCarbs,
+    this.maxCarbs,
+    this.minFat,
+    this.maxFat,
+    this.minKcal,
+    this.maxKcal,
+    this.sort,
+  });
+
+  static const none = NutrientFilters();
+
+  List<double?> get _bounds => [minProtein, maxProtein, minCarbs, maxCarbs, minFat, maxFat, minKcal, maxKcal];
+
+  bool get hasBounds => _bounds.any((v) => v != null);
+  bool get isActive => hasBounds || sort != null;
+  int get activeCount => _bounds.where((v) => v != null).length + (sort == null ? 0 : 1);
+
+  /// Riassunto per l'utente, es. "Proteine ≥ 50 g · Grassi ≤ 10 g".
+  String get summary {
+    final parts = <String>[
+      if (minProtein != null) 'Proteine ≥ ${_fmt(minProtein!)} g',
+      if (maxProtein != null) 'Proteine ≤ ${_fmt(maxProtein!)} g',
+      if (minCarbs != null) 'Carboidrati ≥ ${_fmt(minCarbs!)} g',
+      if (maxCarbs != null) 'Carboidrati ≤ ${_fmt(maxCarbs!)} g',
+      if (minFat != null) 'Grassi ≥ ${_fmt(minFat!)} g',
+      if (maxFat != null) 'Grassi ≤ ${_fmt(maxFat!)} g',
+      if (minKcal != null) 'Calorie ≥ ${_fmt(minKcal!)}',
+      if (maxKcal != null) 'Calorie ≤ ${_fmt(maxKcal!)}',
+      if (sort != null) sortLabels[sort!] ?? '',
+    ];
+    return parts.where((p) => p.isNotEmpty).join(' · ');
+  }
+
+  static String _fmt(double v) => v == v.roundToDouble() ? v.round().toString() : v.toStringAsFixed(1);
+
+  static const sortLabels = {
+    'protein_desc': 'Più proteici',
+    'carbs_asc': 'Meno carboidrati',
+    'fat_asc': 'Meno grassi',
+    'kcal_asc': 'Meno calorie',
+    'kcal_desc': 'Più calorie',
+  };
+
+  Map<String, dynamic> toParams() => {
+        if (minProtein != null) 'p_min_protein': minProtein,
+        if (maxProtein != null) 'p_max_protein': maxProtein,
+        if (minCarbs != null) 'p_min_carbs': minCarbs,
+        if (maxCarbs != null) 'p_max_carbs': maxCarbs,
+        if (minFat != null) 'p_min_fat': minFat,
+        if (maxFat != null) 'p_max_fat': maxFat,
+        if (minKcal != null) 'p_min_kcal': minKcal,
+        if (maxKcal != null) 'p_max_kcal': maxKcal,
+        if (sort != null) 'p_sort': sort,
+      };
+}
+
 /// Riga di `public.notifications` (non letta se `read_at` è nullo).
 class AppNotification {
   final String id;
@@ -450,6 +523,13 @@ class AppNotification {
     this.createdAt,
     this.data = const {},
   });
+
+  /// Notifica di un messaggio in chat: ha il suo badge, quindi non si
+  /// conta tra le notifiche generiche. Il tipo è 'system' con
+  /// data.kind = 'new_message' (vedi migration 018).
+  bool get isMessage => type == 'new_message' || data['kind'] == 'new_message' || data['conversation_id'] != null;
+
+  String? get conversationId => data['conversation_id'] as String?;
 
   factory AppNotification.fromJson(Map<String, dynamic> json) => AppNotification(
         id: json['id'] as String,
@@ -523,21 +603,49 @@ class PersonalMeal {
       );
 }
 
-/// Prodotto restituito dalla Edge Function `search-off` (non ancora in catalogo).
+/// Prodotto del catalogo esteso (Edge Function `search-off`), non ancora
+/// importato in `foods`. Le chiavi sono le stesse della tabella.
 class OffProduct {
   final String name;
   final String? brand;
   final String? barcode;
   final double kcal;
+  final double proteinG;
+  final double carbsG;
+  final double fatG;
+  final String? nutriscoreGrade;
 
-  const OffProduct({required this.name, this.brand, this.barcode, required this.kcal});
+  const OffProduct({
+    required this.name,
+    this.brand,
+    this.barcode,
+    required this.kcal,
+    this.proteinG = 0,
+    this.carbsG = 0,
+    this.fatG = 0,
+    this.nutriscoreGrade,
+  });
 
   factory OffProduct.fromJson(Map<String, dynamic> json) => OffProduct(
         name: (json['name'] as String?) ?? 'Prodotto',
         brand: json['brand'] as String?,
         barcode: json['barcode'] as String?,
         kcal: _num(json['kcal']),
+        proteinG: _num(json['protein_g']),
+        carbsG: _num(json['carbs_g']),
+        fatG: _num(json['fat_g']),
+        nutriscoreGrade: (json['nutriscore_grade'] as String?)?.toUpperCase(),
       );
+
+  /// Rispetta i filtri nutrizionali impostati dall'utente? Il catalogo
+  /// esterno non li applica, quindi si filtra qui.
+  bool matches(NutrientFilters f) {
+    bool ok(double? min, double? max, double v) => (min == null || v >= min) && (max == null || v <= max);
+    return ok(f.minProtein, f.maxProtein, proteinG) &&
+        ok(f.minCarbs, f.maxCarbs, carbsG) &&
+        ok(f.minFat, f.maxFat, fatG) &&
+        ok(f.minKcal, f.maxKcal, kcal);
+  }
 }
 
 /// Riga restituita da `get_my_patients`.

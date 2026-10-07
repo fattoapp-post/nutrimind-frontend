@@ -63,14 +63,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  IconData _icon(String type) => switch (type) {
-        'new_comment' || 'nutritionist_comment' => Icons.chat_bubble_outline,
-        'plan_updated' => Icons.assignment_outlined,
-        'link_event' => Icons.link,
-        'logging_reminder' => Icons.alarm,
-        'meal_review' => Icons.rate_review_outlined,
-        _ => Icons.notifications_outlined,
-      };
+  IconData _icon(AppNotification n) {
+    if (n.isMessage) return Icons.chat_bubble_outline;
+    return switch (n.type) {
+      'new_comment' || 'nutritionist_comment' => Icons.chat_bubble_outline,
+      'plan_updated' => Icons.assignment_outlined,
+      'link_event' => Icons.link,
+      'logging_reminder' => Icons.alarm,
+      'meal_review' => Icons.rate_review_outlined,
+      _ => Icons.notifications_outlined,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +107,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           itemBuilder: (context, i) {
                             final n = _items[i];
                             return ListTile(
-                              leading: Icon(_icon(n.type), color: primaryTeal),
+                              leading: Icon(_icon(n), color: primaryTeal),
                               title: Text(n.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                               subtitle: Text(n.body),
                               trailing: IconButton(

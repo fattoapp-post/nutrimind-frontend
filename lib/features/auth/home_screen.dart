@@ -96,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
     try {
       final items = await NotificationService.getUnread();
       // I messaggi hanno il loro badge: non si contano due volte
-      final others = items.where((n) => n.type != 'new_message').length;
+      final others = items.where((n) => !n.isMessage).length;
       final messages = await ChatService.unreadCount();
       if (mounted) {
         setState(() {

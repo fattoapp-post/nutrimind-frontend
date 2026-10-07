@@ -10,9 +10,15 @@ import 'supabase.dart';
 class FoodService {
   // --- Catalogo ---------------------------------------------------------
 
-  static Future<List<Food>> searchFoods(String query, {int limit = 20}) {
+  /// Catalogo locale. [filters] applica i vincoli sui valori per 100 g:
+  /// con i soli filtri si può cercare anche senza testo.
+  static Future<List<Food>> searchFoods(String query, {int limit = 20, NutrientFilters? filters}) {
     return withSessionRetry(() async {
-      final rows = await supabase.rpc('search_foods', params: {'p_query': query, 'p_limit': limit});
+      final rows = await supabase.rpc('search_foods', params: {
+        'p_query': query.trim().isEmpty ? null : query.trim(),
+        'p_limit': limit,
+        ...?filters?.toParams(),
+      });
       return _foods(rows);
     });
   }

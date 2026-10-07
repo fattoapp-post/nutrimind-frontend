@@ -16,6 +16,7 @@ class AppError implements Exception {
     if (status == 403) return 'Operazione non autorizzata.';
     if (status == 404) return 'Elemento non trovato.';
     if (status == 429) return 'Troppe richieste. Riprova tra poco.';
+    if (status == 501) return 'Questa funzione non è ancora attiva sul server.';
     if (status != null && status >= 502) return 'Servizio temporaneamente non disponibile.';
     return 'Si è verificato un errore. Riprova.';
   }
@@ -56,6 +57,12 @@ class AppError implements Exception {
       case 'PGRST302':
       case 'PGRST303':
         return 401;
+      // Funzione o tabella non presente nello schema: migration mancante
+      case 'PGRST202':
+      case 'PGRST205':
+      case '42883':
+      case '42P01':
+        return 501;
       case '54000':
         return 429;
       case '22023':

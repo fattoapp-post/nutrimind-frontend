@@ -7,6 +7,7 @@ import '../../core/food_service.dart';
 import '../../core/models.dart';
 import '../nutritionist/create_food_screen.dart';
 import 'food_detail_screen.dart';
+import 'nutrient_filters_sheet.dart';
 
 /// Ricerca nel catalogo locale. Restituisce `true` se un alimento è stato
 /// aggiunto al diario.
@@ -34,6 +35,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
   bool _loading = false;
   String? _error;
   List<Food> _results = [];
+  NutrientFilters _filters = NutrientFilters.none;
 
   // Database esteso (Edge search-off): parte da solo, una volta per ricerca,
   // quando il catalogo locale dà pochi risultati
@@ -57,7 +59,9 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     });
     try {
       final results = await FoodService.searchOff(query);
-      if (mounted && query == _query) setState(() => _offResults = results);
+      // I filtri non si applicano al catalogo esterno: si filtra qui
+      final filtered = _filters.hasBounds ? results.where((p) => p.matches(_filters)).toList() : results;
+      if (mounted && query == _query) setState(() => _offResults = filtered);
     } on AppError catch (e) {
       if (mounted && query == _query) setState(() => _offError = e.message);
     } finally {
@@ -91,13 +95,16 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     if (food != null && mounted) await _open(food);
   }
 
+  /// Si cerca con almeno 2 caratteri, oppure con i soli filtri nutrizionali.
+  bool get _canSearch => _query.length >= 2 || _filters.hasBounds;
+
   void _onChanged(String value) {
     _timer?.cancel();
     _query = value.trim();
     _offResults = null;
     _offError = null;
     _offLoading = false;
-    if (_query.length < 2) {
+    if (!_canSearch) {
       setState(() {
         _results = [];
         _error = null;
@@ -108,15 +115,31 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     _timer = Timer(_debounce, () => _search(_query));
   }
 
+  Future<void> _openFilters() async {
+    final filters = await NutrientFiltersSheet.show(context, _filters);
+    if (filters == null || !mounted) return;
+    setState(() {
+      _filters = filters;
+      _offResults = null;
+      _offError = null;
+    });
+    if (_canSearch) {
+      _search(_query);
+    } else {
+      setState(() => _results = []);
+    }
+  }
+
   Future<void> _search(String query) async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final results = await FoodService.searchFoods(query);
+      final results = await FoodService.searchFoods(query, filters: _filters);
       if (!mounted || query != _query) return;
       setState(() => _results = results);
+      // Catalogo esteso: solo su ricerca testuale, serve il nome del prodotto
       if (results.length < _extendedThreshold && query.length >= 3 && _offResults == null) {
         _searchOff();
       }
@@ -155,25 +178,72 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
         children: [
           // Barra di ricerca
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              style: const TextStyle(color: Colors.white),
-              autofocus: true, // Apre subito la tastiera
-              decoration: InputDecoration(
-                hintText: 'Cerca un alimento...',
-                hintStyle: const TextStyle(color: textSecondary),
-                prefixIcon: const Icon(Icons.search, color: textSecondary),
-                filled: true,
-                fillColor: cardColor,
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    style: const TextStyle(color: Colors.white),
+                    autofocus: true, // Apre subito la tastiera
+                    decoration: InputDecoration(
+                      hintText: 'Cerca un alimento...',
+                      hintStyle: const TextStyle(color: textSecondary),
+                      prefixIcon: const Icon(Icons.search, color: textSecondary),
+                      filled: true,
+                      fillColor: cardColor,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: _onChanged,
+                  ),
                 ),
-              ),
-              onChanged: _onChanged,
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: _filters.isActive ? primaryTeal : cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: IconButton(
+                    tooltip: 'Filtri nutrizionali',
+                    onPressed: _openFilters,
+                    icon: Badge(
+                      isLabelVisible: _filters.activeCount > 0,
+                      label: Text('${_filters.activeCount}'),
+                      child: Icon(Icons.tune, color: _filters.isActive ? Colors.white : textSecondary),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+          if (_filters.isActive)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(_filters.summary, style: const TextStyle(color: primaryTeal, fontSize: 12)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _filters = NutrientFilters.none;
+                        _offResults = null;
+                      });
+                      if (_canSearch) {
+                        _search(_query);
+                      } else {
+                        setState(() => _results = []);
+                      }
+                    },
+                    child: const Text('Azzera', style: TextStyle(color: textSecondary, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
           if (_loading) const LinearProgressIndicator(color: primaryTeal, backgroundColor: cardColor),
           Expanded(child: _buildBody()),
         ],
@@ -188,20 +258,35 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
         child: const Text('Riprova', style: TextStyle(color: primaryTeal)),
       ));
     }
-    if (_query.length < 2) return _buildMessage(Icons.restaurant_menu, 'Cerca un alimento da aggiungere');
+    if (!_canSearch) {
+      return _buildMessage(
+        Icons.restaurant_menu,
+        'Cerca un alimento da aggiungere\noppure usa i filtri nutrizionali',
+      );
+    }
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
         if (_results.isEmpty && !_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text('Nessun alimento nel catalogo', textAlign: TextAlign.center, style: TextStyle(color: textSecondary)),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(
+              _filters.hasBounds
+                  ? 'Nessun alimento in catalogo con questi valori nutrizionali'
+                  : 'Nessun alimento nel catalogo',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: textSecondary),
+            ),
           ),
         for (final food in _results) ...[
           _tile(
             title: food.name,
-            subtitle: [if (food.subtitle.isNotEmpty) food.subtitle, '${food.kcal.round()} kcal / 100 g'].join(' · '),
+            subtitle: [
+              if (food.subtitle.isNotEmpty) food.subtitle,
+              '${food.kcal.round()} kcal',
+              'P ${food.proteinG.round()} · C ${food.carbsG.round()} · G ${food.fatG.round()} g',
+            ].join(' · '),
             trailing: food.isVerified
                 ? const Icon(Icons.verified_outlined, color: primaryTeal, size: 18)
                 : const Icon(Icons.chevron_right, color: textSecondary),
@@ -254,7 +339,11 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
       for (final p in _offResults!) ...[
         _tile(
           title: p.name,
-          subtitle: [if (p.brand?.isNotEmpty ?? false) p.brand!, '${p.kcal.round()} kcal / 100 g'].join(' · '),
+          subtitle: [
+            if (p.brand?.isNotEmpty ?? false) p.brand!,
+            '${p.kcal.round()} kcal',
+            'P ${p.proteinG.round()} · C ${p.carbsG.round()} · G ${p.fatG.round()} g',
+          ].join(' · '),
           trailing: _importingBarcode == p.barcode
               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))
               : const Icon(Icons.chevron_right, color: textSecondary),
