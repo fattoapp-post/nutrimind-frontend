@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../core/theme.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/account_service.dart';
@@ -34,14 +36,7 @@ class _EditableIngredient {
 }
 
 class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
 
   final _title = TextEditingController();
   final _description = TextEditingController();
@@ -155,7 +150,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
     final picked = await showModalBottomSheet<({Food food, double grams})>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => const _FoodPickerSheet(),
     );
@@ -236,23 +231,24 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: textPrimary),
+          icon: Icon(Icons.close, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(_isNew ? 'Nuova ricetta' : 'Modifica ricetta',
-            style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           if (!_loading && _loadError == null)
             TextButton(
               onPressed: _saving ? null : _save,
-              child: const Text('Salva', style: TextStyle(color: primaryTeal, fontWeight: FontWeight.bold)),
+              child: Text('Salva', style: TextStyle(color: primaryTeal, fontWeight: FontWeight.bold)),
             ),
         ],
       ),
@@ -261,7 +257,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: primaryTeal));
+    if (_loading) return Center(child: CircularProgressIndicator(color: primaryTeal));
     if (_loadError != null) {
       return Center(
         child: Padding(
@@ -269,7 +265,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_loadError!, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary)),
+              Text(_loadError!, textAlign: TextAlign.center, style: TextStyle(color: textSecondary)),
               const SizedBox(height: 12),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: primaryTeal),
@@ -328,13 +324,13 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  const Text('Porzioni', style: TextStyle(color: textSecondary)),
+                  Text('Porzioni', style: TextStyle(color: textSecondary)),
                   IconButton(
                     icon: const Icon(Icons.remove_circle_outline),
                     onPressed: _servings > 1 ? () => setState(() => _servings--) : null,
                   ),
                   Text('$_servings',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
                   IconButton(
                     icon: const Icon(Icons.add_circle_outline),
                     onPressed: _servings < 12 ? () => setState(() => _servings++) : null,
@@ -423,9 +419,9 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, color: primaryTeal, size: 20),
+          Icon(Icons.info_outline, color: primaryTeal, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(text, style: const TextStyle(color: textPrimary, height: 1.4))),
+          Expanded(child: Text(text, style: TextStyle(color: textPrimary, height: 1.4))),
         ],
       ),
     );
@@ -438,13 +434,13 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (_ingredients.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(bottom: 8),
               child: Text('Nessun ingrediente. Aggiungi almeno un alimento.',
                   style: TextStyle(color: textSecondary)),
             ),
           for (var i = 0; i < _ingredients.length; i++) ...[
-            if (i > 0) Divider(height: 16, color: Colors.grey.shade200),
+            if (i > 0) Divider(height: 16, color: borderColor),
             Row(
               key: ObjectKey(_ingredients[i]),
               children: [
@@ -453,10 +449,10 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(_ingredients[i].food.name,
-                          style: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
+                          style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
                       if (_ingredients[i].food.brandLabel != null)
                         Text(_ingredients[i].food.brandLabel!,
-                            style: const TextStyle(color: textSecondary, fontSize: 12)),
+                            style: TextStyle(color: textSecondary, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -473,7 +469,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
                 ),
                 IconButton(
                   tooltip: 'Rimuovi',
-                  icon: const Icon(Icons.delete_outline, color: textSecondary),
+                  icon: Icon(Icons.delete_outline, color: textSecondary),
                   onPressed: () => _removeIngredient(i),
                 ),
               ],
@@ -487,9 +483,9 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
             label: const Text('Aggiungi ingrediente'),
           ),
           if (_ingredients.isNotEmpty) ...[
-            Divider(height: 20, color: Colors.grey.shade200),
+            Divider(height: 20, color: borderColor),
             Text('Per porzione: ${totals.kcal.round()} kcal',
-                style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+                style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -516,7 +512,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
               selected: selected.contains(v),
               selectedColor: primaryTeal.withValues(alpha: 0.15),
               checkmarkColor: primaryTeal,
-              backgroundColor: Colors.white,
+              backgroundColor: cardColor,
               onSelected: (on) => setState(() => on ? selected.add(v) : selected.remove(v)),
             ),
         ],
@@ -532,24 +528,24 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
         errorText: errorText,
         alignLabelWithHint: alignLabelWithHint,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: cardColor,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+          borderSide: BorderSide(color: borderColor),
         ),
       );
 
   Widget _sectionTitle(String text) =>
-      Text(text, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary));
+      Text(text, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary));
 
   Widget _card({required Widget child}) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: borderColor),
         ),
         child: child,
       );
@@ -564,9 +560,6 @@ class _FoodPickerSheet extends StatefulWidget {
 }
 
 class _FoodPickerSheetState extends State<_FoodPickerSheet> {
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   final _query = TextEditingController();
   final _grams = TextEditingController();
@@ -639,6 +632,7 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final height = MediaQuery.sizeOf(context).height * 0.85;
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -656,7 +650,7 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Aggiungi ingrediente',
+        Text('Aggiungi ingrediente',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
         const SizedBox(height: 12),
         TextField(
@@ -671,7 +665,7 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
           ),
         ),
         const SizedBox(height: 8),
-        if (_searching) const LinearProgressIndicator(color: primaryTeal),
+        if (_searching) LinearProgressIndicator(color: primaryTeal),
         Expanded(child: _buildResults()),
       ],
     );
@@ -683,10 +677,10 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary)),
+            Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: textSecondary)),
             TextButton(
               onPressed: () => _search(_query.text.trim()),
-              child: const Text('Riprova', style: TextStyle(color: primaryTeal)),
+              child: Text('Riprova', style: TextStyle(color: primaryTeal)),
             ),
           ],
         ),
@@ -698,21 +692,21 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
           : _searching
               ? ''
               : 'Nessun alimento trovato.';
-      return Center(child: Text(text, style: const TextStyle(color: textSecondary)));
+      return Center(child: Text(text, style: TextStyle(color: textSecondary)));
     }
     return ListView.separated(
       itemCount: _results.length,
-      separatorBuilder: (_, _) => Divider(height: 1, color: Colors.grey.shade200),
+      separatorBuilder: (_, _) => Divider(height: 1, color: borderColor),
       itemBuilder: (_, i) {
         final f = _results[i];
         return ListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text(f.name, style: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
+          title: Text(f.name, style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600)),
           subtitle: Text(
             [if (f.brandLabel != null) f.brandLabel!, '${f.kcal.round()} kcal / 100 g'].join(' · '),
-            style: const TextStyle(color: textSecondary, fontSize: 12),
+            style: TextStyle(color: textSecondary, fontSize: 12),
           ),
-          trailing: const Icon(Icons.add_circle_outline, color: primaryTeal),
+          trailing: Icon(Icons.add_circle_outline, color: primaryTeal),
           onTap: () => _select(f),
         );
       },
@@ -727,17 +721,17 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
         Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.arrow_back, color: textPrimary),
+              icon: Icon(Icons.arrow_back, color: textPrimary),
               onPressed: () => setState(() => _selected = null),
             ),
-            const Expanded(
+            Expanded(
               child: Text('Quantità', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        Text(food.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textPrimary)),
-        if (food.brandLabel != null) Text(food.brandLabel!, style: const TextStyle(color: textSecondary)),
+        Text(food.name, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textPrimary)),
+        if (food.brandLabel != null) Text(food.brandLabel!, style: TextStyle(color: textSecondary)),
         const SizedBox(height: 16),
         TextField(
           controller: _grams,
@@ -754,7 +748,7 @@ class _FoodPickerSheetState extends State<_FoodPickerSheet> {
         ),
         const SizedBox(height: 8),
         Text('${(food.kcal * grams / 100).round()} kcal',
-            style: const TextStyle(color: textSecondary)),
+            style: TextStyle(color: textSecondary)),
         const Spacer(),
         SizedBox(
           width: double.infinity,

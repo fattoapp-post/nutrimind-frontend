@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/theme.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app_error.dart';
@@ -32,13 +34,6 @@ PlanTemplate _withPublished(PlanTemplate p, bool published) => PlanTemplate(
 );
 
 class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
 
   List<PlanTemplate> _plans = [];
   bool _loading = true;
@@ -127,12 +122,13 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Piani di base',
           style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
         ),
@@ -145,13 +141,13 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
         label: const Text('Nuovo piano'),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: primaryTeal))
+          ? Center(child: CircularProgressIndicator(color: primaryTeal))
           : _error != null
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_error!, style: const TextStyle(color: textSecondary)),
+                  Text(_error!, style: TextStyle(color: textSecondary)),
                   TextButton(onPressed: _load, child: const Text('Riprova')),
                 ],
               ),
@@ -165,7 +161,7 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
                   _buildInfoCard(),
                   const SizedBox(height: 16),
                   if (_plans.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 32),
                       child: Text(
                         'Non hai ancora creato piani di base.\nTocca "Nuovo piano" per iniziare.',
@@ -189,7 +185,7 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: primaryTeal.withValues(alpha: 0.2)),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.info_outline, color: primaryTeal),
@@ -211,7 +207,7 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
       decoration: BoxDecoration(color: primaryTeal.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
       child: Text(
         text,
-        style: const TextStyle(color: primaryTeal, fontSize: 12, fontWeight: FontWeight.w500),
+        style: TextStyle(color: primaryTeal, fontSize: 12, fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -226,7 +222,7 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
-        Text('$label ${grams.round()} g', style: const TextStyle(color: textPrimary, fontSize: 13)),
+        Text('$label ${grams.round()} g', style: TextStyle(color: textPrimary, fontSize: 13)),
       ],
     );
   }
@@ -245,9 +241,9 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +257,7 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
                   children: [
                     Text(
                       p.title,
-                      style: const TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -284,12 +280,12 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
               p.description!,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: textSecondary),
+              style: TextStyle(color: textSecondary),
             ),
           ],
           if (details.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text(details, style: const TextStyle(color: textPrimary, fontSize: 13)),
+            Text(details, style: TextStyle(color: textPrimary, fontSize: 13)),
           ],
           if (p.proteinG != null || p.carbsG != null || p.fatG != null) ...[
             const SizedBox(height: 6),
@@ -318,8 +314,8 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
               ),
               TextButton.icon(
                 onPressed: () => _edit(p),
-                icon: const Icon(Icons.edit_outlined, size: 18, color: primaryTeal),
-                label: const Text('Modifica', style: TextStyle(color: primaryTeal)),
+                icon: Icon(Icons.edit_outlined, size: 18, color: primaryTeal),
+                label: Text('Modifica', style: TextStyle(color: primaryTeal)),
               ),
             ],
           ),
@@ -340,10 +336,6 @@ class _PlanFormScreen extends StatefulWidget {
 }
 
 class _PlanFormScreenState extends State<_PlanFormScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   final _formKey = GlobalKey<FormState>();
   late final _title = TextEditingController(text: widget.plan?.title ?? '');
@@ -417,18 +409,18 @@ class _PlanFormScreenState extends State<_PlanFormScreen> {
     hintText: hint,
     suffixText: suffix,
     filled: true,
-    fillColor: Colors.white,
+    fillColor: cardColor,
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: Colors.grey.shade200),
+      borderSide: BorderSide(color: borderColor),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: Colors.grey.shade200),
+      borderSide: BorderSide(color: borderColor),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: primaryTeal),
+      borderSide: BorderSide(color: primaryTeal),
     ),
   );
 
@@ -462,8 +454,8 @@ class _PlanFormScreenState extends State<_PlanFormScreen> {
             selected: selected.contains(e.key),
             showCheckmark: false,
             selectedColor: primaryTeal,
-            backgroundColor: Colors.white,
-            side: BorderSide(color: selected.contains(e.key) ? primaryTeal : Colors.grey.shade200),
+            backgroundColor: cardColor,
+            side: BorderSide(color: selected.contains(e.key) ? primaryTeal : borderColor),
             labelStyle: TextStyle(color: selected.contains(e.key) ? Colors.white : textPrimary),
             onSelected: (v) => setState(() => v ? selected.add(e.key) : selected.remove(e.key)),
           ),
@@ -475,12 +467,13 @@ class _PlanFormScreenState extends State<_PlanFormScreen> {
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(
       text,
-      style: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
     ),
   );
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final editing = widget.plan?.id != null;
     return Scaffold(
       backgroundColor: bgColor,
@@ -489,7 +482,7 @@ class _PlanFormScreenState extends State<_PlanFormScreen> {
         elevation: 0,
         title: Text(
           editing ? 'Modifica piano' : 'Nuovo piano',
-          style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
         ),
       ),
       body: Form(
@@ -552,16 +545,16 @@ class _PlanFormScreenState extends State<_PlanFormScreen> {
             const SizedBox(height: 12),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: borderColor),
               ),
               child: SwitchListTile(
                 value: _published,
                 activeThumbColor: primaryTeal,
                 onChanged: (v) => setState(() => _published = v),
-                title: const Text('Pubblicato', style: TextStyle(color: textPrimary)),
-                subtitle: const Text('Visibile nella tua pagina pubblica', style: TextStyle(color: textSecondary)),
+                title: Text('Pubblicato', style: TextStyle(color: textPrimary)),
+                subtitle: Text('Visibile nella tua pagina pubblica', style: TextStyle(color: textSecondary)),
               ),
             ),
             const SizedBox(height: 24),

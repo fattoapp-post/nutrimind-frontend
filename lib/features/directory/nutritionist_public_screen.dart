@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/chat_service.dart';
 import '../../core/community_models.dart';
@@ -23,13 +25,6 @@ class NutritionistPublicScreen extends StatefulWidget {
 }
 
 class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
 
   List<PlanTemplate> _plans = [];
   bool _plansLoading = true;
@@ -107,6 +102,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
@@ -114,7 +110,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
         elevation: 0,
         title: Text(
           card.displayName,
-          style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
           overflow: TextOverflow.ellipsis,
         ),
       ),
@@ -143,22 +139,23 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
   // --- Intestazione --------------------------------------------------------
 
   BoxDecoration get _cardDecoration => BoxDecoration(
-    color: Colors.white,
+    color: cardColor,
     borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: Colors.grey.shade200),
+    border: Border.all(color: borderColor),
   );
 
-  Widget _tag(String text, {Color color = primaryTeal, IconData? icon}) {
+  Widget _tag(String text, {Color? color, IconData? icon}) {
+    final c = color ?? primaryTeal;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 14, color: color), const SizedBox(width: 4)],
+          if (icon != null) ...[Icon(icon, size: 14, color: c), const SizedBox(width: 4)],
           Text(
             text,
-            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -167,7 +164,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
 
   Widget _sectionTitle(String text) => Text(
     text,
-    style: const TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+    style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
   );
 
   Widget _buildHeader() {
@@ -195,7 +192,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
                 backgroundColor: primaryTeal.withValues(alpha: 0.12),
                 child: Text(
                   card.displayName.isNotEmpty ? card.displayName.characters.first.toUpperCase() : '?',
-                  style: const TextStyle(color: primaryTeal, fontWeight: FontWeight.bold, fontSize: 24),
+                  style: TextStyle(color: primaryTeal, fontWeight: FontWeight.bold, fontSize: 24),
                 ),
               ),
               const SizedBox(width: 14),
@@ -208,19 +205,19 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
                         Flexible(
                           child: Text(
                             card.displayName,
-                            style: const TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Tooltip(
+                        Tooltip(
                           message: 'Professionista verificato',
                           child: Icon(Icons.verified, size: 20, color: primaryTeal),
                         ),
                       ],
                     ),
-                    Text(card.professionLabel, style: const TextStyle(color: textSecondary)),
+                    Text(card.professionLabel, style: TextStyle(color: textSecondary)),
                     if (card.studioName != null)
-                      Text(card.studioName!, style: const TextStyle(color: textSecondary, fontSize: 13)),
+                      Text(card.studioName!, style: TextStyle(color: textSecondary, fontSize: 13)),
                   ],
                 ),
               ),
@@ -230,17 +227,17 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
             const SizedBox(height: 12),
             Text(
               card.headline!,
-              style: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+              style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
             ),
           ],
           if (place.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.place_outlined, size: 16, color: textSecondary),
+                Icon(Icons.place_outlined, size: 16, color: textSecondary),
                 const SizedBox(width: 4),
                 Flexible(
-                  child: Text(place, style: const TextStyle(color: textSecondary)),
+                  child: Text(place, style: TextStyle(color: textSecondary)),
                 ),
               ],
             ),
@@ -259,7 +256,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
           ],
           if (card.bio != null) ...[
             const SizedBox(height: 12),
-            Text(card.bio!, style: const TextStyle(color: textPrimary, height: 1.4)),
+            Text(card.bio!, style: TextStyle(color: textPrimary, height: 1.4)),
           ],
           if (card.specialties.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -279,7 +276,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: primaryTeal,
-                      side: BorderSide(color: Colors.grey.shade300),
+                      side: BorderSide(color: borderColor),
                       visualDensity: VisualDensity.compact,
                     ),
                     onPressed: () => openExternalLink(context, l.url),
@@ -298,7 +295,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
 
   Widget _sectionState({required bool loading, String? error, required VoidCallback retry, required String empty}) {
     if (loading) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(16),
         child: Center(child: CircularProgressIndicator(color: primaryTeal)),
       );
@@ -310,7 +307,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
         child: Row(
           children: [
             Expanded(
-              child: Text(error, style: const TextStyle(color: textSecondary)),
+              child: Text(error, style: TextStyle(color: textSecondary)),
             ),
             TextButton(onPressed: retry, child: const Text('Riprova')),
           ],
@@ -320,7 +317,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration,
-      child: Text(empty, style: const TextStyle(color: textSecondary)),
+      child: Text(empty, style: TextStyle(color: textSecondary)),
     );
   }
 
@@ -350,7 +347,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
-        Text('$label ${grams.round()} g', style: const TextStyle(color: textPrimary, fontSize: 13)),
+        Text('$label ${grams.round()} g', style: TextStyle(color: textPrimary, fontSize: 13)),
       ],
     );
   }
@@ -373,21 +370,21 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
               Expanded(
                 child: Text(
                   p.title,
-                  style: const TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
               if (p.priceLabel != null) ...[
                 const SizedBox(width: 8),
                 Text(
                   p.priceLabel!,
-                  style: const TextStyle(color: primaryTeal, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: primaryTeal, fontWeight: FontWeight.bold),
                 ),
               ],
             ],
           ),
           if (p.description != null) ...[
             const SizedBox(height: 6),
-            Text(p.description!, style: const TextStyle(color: textSecondary, height: 1.4)),
+            Text(p.description!, style: TextStyle(color: textSecondary, height: 1.4)),
           ],
           if (p.kcal != null || hasMacros || p.durationWeeks != null) ...[
             const SizedBox(height: 10),
@@ -399,7 +396,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
                 if (p.kcal != null)
                   Text(
                     '${p.kcal!.round()} kcal/giorno',
-                    style: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
                   ),
                 if (p.proteinG != null) _macro('P', p.proteinG!, colorP),
                 if (p.carbsG != null) _macro('C', p.carbsG!, colorC),
@@ -408,11 +405,11 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.schedule, size: 14, color: textSecondary),
+                      Icon(Icons.schedule, size: 14, color: textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         p.durationWeeks == 1 ? '1 settimana' : '${p.durationWeeks} settimane',
-                        style: const TextStyle(color: textSecondary, fontSize: 13),
+                        style: TextStyle(color: textSecondary, fontSize: 13),
                       ),
                     ],
                   ),
@@ -452,10 +449,10 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
       for (final g in r.goalTags) goalTagLabels[g] ?? g,
     ];
     return Material(
-      color: Colors.white,
+      color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: borderColor),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -472,7 +469,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
                       r.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -480,7 +477,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
                         '${r.kcalPerServing.round()} kcal/porzione',
                         if (r.prepMinutes != null) '${r.prepMinutes} min',
                       ].join(' · '),
-                      style: const TextStyle(color: textSecondary, fontSize: 13),
+                      style: TextStyle(color: textSecondary, fontSize: 13),
                     ),
                     if (tags.isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -495,7 +492,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
                   icon: Icon(socialLinkStyle(r.socialUrl!).icon, color: primaryTeal),
                   onPressed: () => openExternalLink(context, r.socialUrl!),
                 ),
-              const Icon(Icons.chevron_right, color: textSecondary),
+              Icon(Icons.chevron_right, color: textSecondary),
             ],
           ),
         ),
@@ -511,14 +508,14 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          color: cardColor,
+          border: Border(top: BorderSide(color: borderColor)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (!_canWrite)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(bottom: 8),
                 child: Text(
                   'Al momento non accetta nuovi pazienti, quindi non è possibile scrivergli.',

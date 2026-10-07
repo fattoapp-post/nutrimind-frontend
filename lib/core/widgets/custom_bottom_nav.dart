@@ -1,24 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../theme.dart';
+
 import '../../features/shell/patient_shell.dart';
 
 /// Barra di navigazione del paziente. Cambia scheda nella [PatientShell]
 /// (nessun push di route), lasciando spazio al FAB centrale.
 class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
-  final bool isDarkMode;
 
-  const CustomBottomNav({
-    super.key,
-    required this.currentIndex,
-    this.isDarkMode = true,
-  });
+  const CustomBottomNav({super.key, required this.currentIndex});
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isDarkMode ? const Color(0xFF101817) : Colors.white;
-    final selectedColor = isDarkMode ? Colors.white : const Color(0xFF127B6D);
-    final unselectedColor = isDarkMode ? const Color(0xFFA1AFA9) : const Color(0xFF6B7280);
+    context.watchTheme();
+    final selectedColor = palette.isDark ? palette.textPrimary : palette.teal;
+    final unselectedColor = palette.textSecondary;
     final tab = PatientShellScope.maybeOf(context);
 
     Widget item(IconData icon, String label, int index) {
@@ -50,7 +47,7 @@ class CustomBottomNav extends StatelessWidget {
     }
 
     return BottomAppBar(
-      color: bgColor,
+      color: palette.bg,
       surfaceTintColor: Colors.transparent,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8.0,

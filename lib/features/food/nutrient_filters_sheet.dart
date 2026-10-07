@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/models.dart';
 
 /// Filtri sui valori nutrizionali per 100 g: "almeno 50 g di proteine e
@@ -25,13 +27,6 @@ class NutrientFiltersSheet extends StatefulWidget {
 }
 
 class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
-  static const Color bgColor = Color(0xFF101817);
-  static const Color borderColor = Color(0xFF1D2C29);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textSecondary = Color(0xFFA1AFA9);
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
 
   late final _minProtein = _ctrl(widget.initial.minProtein);
   late final _maxProtein = _ctrl(widget.initial.maxProtein);
@@ -101,6 +96,7 @@ class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
@@ -123,17 +119,17 @@ class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
                   child: Text('Filtri nutrizionali',
                       style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                 ),
-                IconButton(icon: const Icon(Icons.close, color: textSecondary), onPressed: () => Navigator.pop(context)),
+                IconButton(icon: Icon(Icons.close, color: textSecondary), onPressed: () => Navigator.pop(context)),
               ],
             ),
-            const Text('Valori per 100 g di prodotto', style: TextStyle(color: textSecondary)),
+            Text('Valori per 100 g di prodotto', style: TextStyle(color: textSecondary)),
             const SizedBox(height: 16),
             _row('Proteine', colorP, _minProtein, _maxProtein, 'g'),
             _row('Carboidrati', colorC, _minCarbs, _maxCarbs, 'g'),
             _row('Grassi', colorG, _minFat, _maxFat, 'g'),
             _row('Calorie', textSecondary, _minKcal, _maxKcal, 'kcal'),
             const SizedBox(height: 8),
-            const Text('Ordina per', style: TextStyle(color: textSecondary)),
+            Text('Ordina per', style: TextStyle(color: textSecondary)),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -163,9 +159,9 @@ class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
                     onPressed: () => Navigator.pop(context, NutrientFilters.none),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: const BorderSide(color: borderColor),
+                      side: BorderSide(color: borderColor),
                     ),
-                    child: const Text('Azzera', style: TextStyle(color: textSecondary)),
+                    child: Text('Azzera', style: TextStyle(color: textSecondary)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -191,19 +187,19 @@ class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
   Widget _row(String label, Color color, TextEditingController min, TextEditingController max, String unit) {
     InputDecoration dec(String hint) => InputDecoration(
           labelText: hint,
-          labelStyle: const TextStyle(color: textSecondary, fontSize: 13),
+          labelStyle: TextStyle(color: textSecondary, fontSize: 13),
           suffixText: unit,
-          suffixStyle: const TextStyle(color: textSecondary, fontSize: 12),
+          suffixStyle: TextStyle(color: textSecondary, fontSize: 12),
           isDense: true,
           filled: true,
           fillColor: bgColor,
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: borderColor),
+            borderSide: BorderSide(color: borderColor),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: primaryTeal),
+            borderSide: BorderSide(color: primaryTeal),
           ),
         );
     return Padding(

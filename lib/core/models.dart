@@ -276,6 +276,9 @@ class Profile {
 
   bool get isNutritionist => role == UserRole.nutritionist || role == UserRole.admin;
 
+  /// Vede il pannello di amministrazione (verifiche professionali).
+  bool get isAdmin => role == UserRole.admin;
+
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
         id: json['id'] as String,
         role: UserRole.fromValue(json['role'] as String?),

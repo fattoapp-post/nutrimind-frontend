@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/account_service.dart';
 import '../../core/models.dart';
 import 'profile_widgets.dart';
@@ -65,6 +67,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return SettingsPage(
       title: 'Dati personali',
       busy: _busy,
@@ -75,7 +78,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
             TextField(controller: _name, maxLength: 80, decoration: const InputDecoration(labelText: 'Nome visualizzato')),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.alternate_email, color: ProfilePalette.textSecondary),
+              leading: Icon(Icons.alternate_email, color: ProfilePalette.textSecondary),
               title: Text(AccountService.email ?? '—'),
               subtitle: const Text('Email di accesso'),
             ),

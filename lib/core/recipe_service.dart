@@ -155,3 +155,42 @@ class RecipeService {
     });
   }
 }
+
+/// Consigli mirati: una ricetta o un alimento che il professionista
+/// indica a un singolo paziente (migration 023).
+class SuggestionService {
+  /// Senza [patientId] sono i consigli ricevuti da chi chiama.
+  static Future<List<PatientSuggestion>> list({String? patientId}) {
+    return withSessionRetry(() async {
+      final rows = await supabase.rpc(
+        'get_patient_suggestions',
+        params: {'p_patient_id': ?patientId},
+      ) as List;
+      return rows
+          .map((r) => PatientSuggestion.fromJson(Map<String, dynamic>.from(r as Map)))
+          .toList();
+    });
+  }
+
+  /// Una delle due fra [mealId] e [foodId], non entrambe.
+  static Future<String> add({
+    required String patientId,
+    String? mealId,
+    String? foodId,
+    String? note,
+  }) {
+    return withSessionRetry(() async {
+      final id = await supabase.rpc('suggest_to_patient', params: {
+        'p_patient_id': patientId,
+        'p_meal_id': ?mealId,
+        'p_food_id': ?foodId,
+        'p_note': ?note,
+      });
+      return id as String;
+    });
+  }
+
+  static Future<void> remove(String id) {
+    return withSessionRetry(() => supabase.rpc('remove_patient_suggestion', params: {'p_id': id}));
+  }
+}

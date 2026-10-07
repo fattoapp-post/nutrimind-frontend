@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/account_service.dart';
 import '../../core/app_error.dart';
 import '../../core/models.dart';
@@ -68,6 +70,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     if (_loading || _error != null) {
       return SettingsPage(title: 'Alimentazione', busy: _loading, children: [
         if (_error != null)
@@ -84,6 +87,7 @@ class _PreferencesScreenState extends State<PreferencesScreen> {
       busy: _busy,
       bottom: FilledButton(onPressed: _busy ? null : _save, child: const Text('Salva preferenze')),
       children: [
+        ThemeChoiceTile(),
         SectionCard(
           title: 'Restrizioni e scelte alimentari',
           subtitle: 'Le usiamo per filtrare ricette e suggerimenti. Il nutrizionista le vede solo se condividi il consenso "Restrizioni alimentari".',

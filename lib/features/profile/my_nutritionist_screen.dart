@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/account_service.dart';
 import '../../core/app_error.dart';
 import '../../core/chat_service.dart';
@@ -100,6 +102,7 @@ class _MyNutritionistScreenState extends State<MyNutritionistScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return SettingsPage(
       title: 'Il mio nutrizionista',
       busy: _loading || _busy,
@@ -123,23 +126,23 @@ class _MyNutritionistScreenState extends State<MyNutritionistScreen> {
               radius: 28,
               backgroundColor: ProfilePalette.tealSoft,
               child: Text((info?.name ?? 'N')[0].toUpperCase(),
-                  style: const TextStyle(color: ProfilePalette.teal, fontWeight: FontWeight.bold, fontSize: 22)),
+                  style: TextStyle(color: ProfilePalette.teal, fontWeight: FontWeight.bold, fontSize: 22)),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(info?.name ?? 'Il tuo nutrizionista',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ProfilePalette.textPrimary)),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: ProfilePalette.textPrimary)),
                 Text(
                   [professionLabels[details?.profession] ?? 'Nutrizionista', if (details?.studioName != null) details!.studioName!].join(' · '),
-                  style: const TextStyle(color: ProfilePalette.textSecondary),
+                  style: TextStyle(color: ProfilePalette.textSecondary),
                 ),
               ]),
             ),
           ]),
           if (details?.headline != null) ...[
             const SizedBox(height: 12),
-            Text(details!.headline!, style: const TextStyle(color: ProfilePalette.textPrimary)),
+            Text(details!.headline!, style: TextStyle(color: ProfilePalette.textPrimary)),
           ],
           const SizedBox(height: 12),
           Wrap(spacing: 8, runSpacing: 8, children: [
@@ -215,7 +218,7 @@ class _MyNutritionistScreenState extends State<MyNutritionistScreen> {
             decoration: const InputDecoration(labelText: 'Codice invito'),
           ),
           const SizedBox(height: 12),
-          const Text('Cosa condividi', style: TextStyle(color: ProfilePalette.textSecondary)),
+          Text('Cosa condividi', style: TextStyle(color: ProfilePalette.textSecondary)),
           for (final scope in ConsentScope.values)
             CheckboxListTile(
               contentPadding: EdgeInsets.zero,

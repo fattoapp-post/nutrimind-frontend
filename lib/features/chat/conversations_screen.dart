@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/chat_service.dart';
 import '../../core/community_models.dart';
@@ -19,10 +21,6 @@ class ConversationsScreen extends StatefulWidget {
 }
 
 class _ConversationsScreenState extends State<ConversationsScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   List<Conversation> _items = [];
   bool _loading = true;
@@ -93,13 +91,14 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
         automaticallyImplyLeading: !widget.embedded,
-        title: const Text(
+        title: Text(
           'Messaggi',
           style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
         ),
@@ -107,19 +106,19 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           if (!widget.iAmNutritionist)
             IconButton(
               tooltip: 'Trova un nutrizionista',
-              icon: const Icon(Icons.person_search_outlined, color: primaryTeal),
+              icon: Icon(Icons.person_search_outlined, color: primaryTeal),
               onPressed: _findNutritionist,
             ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: primaryTeal))
+          ? Center(child: CircularProgressIndicator(color: primaryTeal))
           : _error != null
           ? Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(_error!, style: const TextStyle(color: textSecondary)),
+                  Text(_error!, style: TextStyle(color: textSecondary)),
                   TextButton(onPressed: _load, child: const Text('Riprova')),
                 ],
               ),
@@ -137,14 +136,14 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
       padding: const EdgeInsets.all(32),
       children: [
         const SizedBox(height: 80),
-        const Icon(Icons.chat_bubble_outline, size: 56, color: textSecondary),
+        Icon(Icons.chat_bubble_outline, size: 56, color: textSecondary),
         const SizedBox(height: 16),
         Text(
           widget.iAmNutritionist
               ? 'I pazienti che ti scrivono compariranno qui.'
               : 'Nessuna conversazione. Trova un nutrizionista e scrivigli.',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: textSecondary, fontSize: 15),
+          style: TextStyle(color: textSecondary, fontSize: 15),
         ),
         if (!widget.iAmNutritionist) ...[
           const SizedBox(height: 20),
@@ -165,7 +164,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: _items.length,
-      separatorBuilder: (_, _) => Divider(height: 1, indent: 72, color: Colors.grey.shade200),
+      separatorBuilder: (_, _) => Divider(height: 1, indent: 72, color: borderColor),
       itemBuilder: (context, i) {
         final c = _items[i];
         final unread = c.unreadCount > 0;
@@ -175,7 +174,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             backgroundColor: primaryTeal.withValues(alpha: 0.12),
             child: Text(
               c.otherName.isNotEmpty ? c.otherName.characters.first.toUpperCase() : '?',
-              style: const TextStyle(color: primaryTeal, fontWeight: FontWeight.bold),
+              style: TextStyle(color: primaryTeal, fontWeight: FontWeight.bold),
             ),
           ),
           title: Row(
@@ -196,7 +195,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     color: primaryTeal.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text('Collegato', style: TextStyle(color: primaryTeal, fontSize: 11)),
+                  child: Text('Collegato', style: TextStyle(color: primaryTeal, fontSize: 11)),
                 ),
               ],
             ],

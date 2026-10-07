@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+
+import '../../core/theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_error.dart';
 import '../../core/chat_service.dart';
@@ -9,6 +11,8 @@ import '../../core/notification_service.dart';
 import '../../core/push_service.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
 import '../../core/food_service.dart';
+import '../../core/plan_service.dart';
+import '../plan/macro_plan_editor_screen.dart';
 import '../../core/models.dart';
 import '../food/food_detail_screen.dart';
 import '../food/scanner_screen.dart';
@@ -33,15 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
   @override
   void onTabVisible() => _loadDiaryData();
 
-  static const Color bgColor = Color(0xFF101817);
-  static const Color cardColor = Color(0xFF17221F);
-  static const Color borderColor = Color(0xFF1D2C29);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textSecondary = Color(0xFFA1AFA9);
   
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
 
   String _userName = 'Utente';
   late DateTime _today;
@@ -53,6 +49,8 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
   int currentG = 0; int maxG = 65;
   bool _hasPlan = false;
   String? _planName;
+  MacroPlan? _plan;
+  bool _canSelfManage = false;
   Map<MealSlot, double> _kcalBySlot = const {};
 
   List<DiaryEntry> _diaryEntries = [];
@@ -130,6 +128,20 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
   Future<void> _loadUserData() async {
     final name = await loadDisplayName();
     if (mounted) setState(() => _userName = name);
+    // Piano completo e autogestione: servono per le istruzioni e per
+    // sapere se gli obiettivi sono modificabili dal paziente.
+    try {
+      final plan = await PlanService.getCurrentPlan();
+      final canSelf = await PlanService.canSelfManage();
+      if (mounted) {
+        setState(() {
+          _plan = plan;
+          _canSelfManage = canSelf;
+        });
+      }
+    } on AppError {
+      // il diario funziona comunque: resta la riga senza istruzioni
+    }
   }
 
   Future<void> _loadDiaryData() async {
@@ -265,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                   const ListTile(title: Text('Pasti salvati', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
                   for (final m in meals)
                     ListTile(
-                      leading: const Icon(Icons.bookmark_outline, color: primaryTeal),
+                      leading: Icon(Icons.bookmark_outline, color: primaryTeal),
                       title: Text(m.name),
                       subtitle: m.defaultSlot == null ? null : Text(m.defaultSlot!.label),
                       onTap: () => Navigator.pop(ctx, m),
@@ -335,14 +347,10 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
     return '${days[date.weekday - 1]} ${date.day} ${months[date.month - 1]}';
   }
 
-  static const Color _sheetStroke = Color(0xFFE5E7EB);
-  static const Color _sheetIconBg = Color(0xFFE6F4F1);
-  static const Color _sheetTextPrimary = Color(0xFF1F2937);
-
   void _showAddMenu(MealSlot slot) {
-    const Color sheetBg = Color(0xFFFBFBFB);
-    const Color textPrimary = _sheetTextPrimary;
-    const Color textLight = Color(0xFF6B7280);
+    // Il foglio segue il tema come il resto: prima era sempre chiaro
+    final Color sheetBg = cardColor;
+    final Color textLight = textSecondary;
 
     showModalBottomSheet(
       context: context,
@@ -361,8 +369,8 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Aggiungi a ${slot.label}', style: const TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
-                  IconButton(icon: const Icon(Icons.close, color: textLight), onPressed: () => Navigator.pop(context))
+                  Text('Aggiungi a ${slot.label}', style: TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+                  IconButton(icon: Icon(Icons.close, color: textLight), onPressed: () => Navigator.pop(context))
                 ],
               ),
               const SizedBox(height: 16),
@@ -403,16 +411,16 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: _sheetStroke)),
+        decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor)),
         child: Row(
           children: [
-            Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: _sheetIconBg, borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: primaryTeal)),
+            Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: tealSoft, borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: primaryTeal)),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _sheetTextPrimary)),
+                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: textPrimary)),
                   Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 13)),
                 ],
               ),
@@ -426,6 +434,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       floatingActionButton: FloatingActionButton(
@@ -435,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
         child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const CustomBottomNav(currentIndex: PatientTab.diary, isDarkMode: true),
+      bottomNavigationBar: CustomBottomNav(currentIndex: PatientTab.diary),
       
       body: SafeArea(
         child: RefreshIndicator(
@@ -450,12 +459,12 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
               const SizedBox(height: 24),
               _buildDynamicCalendar(),
               const SizedBox(height: 24),
-              if (_loading) const LinearProgressIndicator(color: primaryTeal, backgroundColor: cardColor),
+              if (_loading) LinearProgressIndicator(color: primaryTeal, backgroundColor: cardColor),
               if (_error != null) ...[
                 Row(
                   children: [
                     Expanded(child: Text(_error!, style: const TextStyle(color: Colors.redAccent))),
-                    TextButton(onPressed: _loadDiaryData, child: const Text('Riprova', style: TextStyle(color: primaryTeal))),
+                    TextButton(onPressed: _loadDiaryData, child: Text('Riprova', style: TextStyle(color: primaryTeal))),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -487,7 +496,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(children: [
+          Row(children: [
             Icon(Icons.chat_bubble_outline, color: primaryTeal, size: 18),
             SizedBox(width: 8),
             Text('Note del nutrizionista', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
@@ -503,13 +512,13 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (c.slot != null)
-                          Text(c.slot!.label, style: const TextStyle(color: textSecondary, fontSize: 12)),
+                          Text(c.slot!.label, style: TextStyle(color: textSecondary, fontSize: 12)),
                         Text(c.body, style: TextStyle(color: Colors.white, fontWeight: c.isRead ? FontWeight.normal : FontWeight.bold)),
                       ],
                     ),
                   ),
                   if (!c.isRead)
-                    TextButton(onPressed: () => _markCommentRead(c), child: const Text('Letto', style: TextStyle(color: primaryTeal))),
+                    TextButton(onPressed: () => _markCommentRead(c), child: Text('Letto', style: TextStyle(color: primaryTeal))),
                 ],
               ),
             ),
@@ -527,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
           children: [
             Text('Ciao, $_userName', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
             const SizedBox(height: 4),
-            Text(_getFormattedDate(_selectedDate), style: const TextStyle(color: textSecondary, fontSize: 14)),
+            Text(_getFormattedDate(_selectedDate), style: TextStyle(color: textSecondary, fontSize: 14)),
           ],
         ),
         Row(children: [
@@ -594,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Macros di oggi', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('$currentKcal / $maxKcal kcal', style: const TextStyle(color: textSecondary, fontSize: 14)),
+              Text('$currentKcal / $maxKcal kcal', style: TextStyle(color: textSecondary, fontSize: 14)),
             ],
           ),
           const SizedBox(height: 20),
@@ -623,7 +632,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
               text: TextSpan(
                 children: [
                   TextSpan(text: '${current}g', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  TextSpan(text: ' / ${max}g', style: const TextStyle(color: textSecondary)),
+                  TextSpan(text: ' / ${max}g', style: TextStyle(color: textSecondary)),
                 ],
               ),
             ),
@@ -643,19 +652,78 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
     );
   }
 
+  /// Apre gli obiettivi: li modifica chi si autogestisce, gli altri
+  /// leggono di chi e' il piano.
+  Future<void> _openTargets() async {
+    if (!_canSelfManage) {
+      _showSnack(_hasPlan
+          ? 'Gli obiettivi arrivano dal tuo nutrizionista.'
+          : 'Collega un nutrizionista oppure imposta i tuoi obiettivi dal profilo.');
+      return;
+    }
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => MacroPlanEditorScreen(current: _plan)),
+    );
+    if (saved == true && mounted) _loadDiaryData();
+  }
+
   Widget _buildNutritionistNote() {
-    return Row(
+    final plan = _plan;
+    final label = _hasPlan
+        ? (plan != null && !plan.isSelfManaged
+            ? (_planName == null || _planName!.isEmpty
+                ? 'Piano del tuo nutrizionista'
+                : 'Piano "${_planName!}" del nutrizionista')
+            : 'Obiettivi che hai impostato tu')
+        : (_canSelfManage
+            ? 'Nessun obiettivo impostato · toccami per farlo'
+            : 'Nessun piano attivo · obiettivi indicativi');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(_hasPlan ? Icons.shield_outlined : Icons.info_outline, color: primaryTeal, size: 18),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            _hasPlan
-                ? (_planName == null || _planName!.isEmpty ? 'Piano definito dal nutrizionista' : 'Piano "$_planName" del nutrizionista')
-                : 'Nessun piano attivo · obiettivi indicativi',
-            style: const TextStyle(color: primaryTeal, fontSize: 14, fontWeight: FontWeight.w500),
+        InkWell(
+          onTap: _openTargets,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              children: [
+                Icon(_hasPlan ? Icons.shield_outlined : Icons.info_outline, color: primaryTeal, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(label,
+                      style: TextStyle(color: primaryTeal, fontSize: 14, fontWeight: FontWeight.w500)),
+                ),
+                if (_canSelfManage) Icon(Icons.chevron_right, color: primaryTeal, size: 18),
+              ],
+            ),
           ),
         ),
+        // Il "modus operandi" scritto dal professionista: sta qui perche'
+        // e' il posto dove il paziente guarda i numeri ogni giorno.
+        if (plan?.notes != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: tealSoft,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.tips_and_updates_outlined, color: primaryTeal, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(plan!.notes!, style: TextStyle(color: textPrimary, fontSize: 13, height: 1.4)),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -724,10 +792,10 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(time, style: const TextStyle(color: textSecondary, fontSize: 14)),
+                      Text(time, style: TextStyle(color: textSecondary, fontSize: 14)),
                       if (hasDot) ...[
                         const SizedBox(height: 4),
-                        Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                        Container(width: 6, height: 6, decoration: BoxDecoration(color: cardColor, shape: BoxShape.circle)),
                       ]
                     ],
                   ),
@@ -740,7 +808,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                       Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       if (isEmpty) ...[
                         const SizedBox(height: 4),
-                        const Text('Nessun alimento · Tocca + per aggiungere', style: TextStyle(color: textSecondary, fontSize: 12)),
+                        Text('Nessun alimento · Tocca + per aggiungere', style: TextStyle(color: textSecondary, fontSize: 12)),
                       ] else ...[
                         const SizedBox(height: 8),
                         Wrap(
@@ -760,13 +828,13 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     if (isEmpty)
-                      const Icon(Icons.add_circle_outline, color: textSecondary)
+                      Icon(Icons.add_circle_outline, color: textSecondary)
                     else
-                      Text('$kcal kcal', style: const TextStyle(color: textSecondary, fontSize: 14)),
+                      Text('$kcal kcal', style: TextStyle(color: textSecondary, fontSize: 14)),
                     if (_kcalBySlot[slot] != null)
                       Text(
                         'obiettivo ${_kcalBySlot[slot]!.round()}',
-                        style: const TextStyle(color: textSecondary, fontSize: 11),
+                        style: TextStyle(color: textSecondary, fontSize: 11),
                       ),
                   ],
                 ),
@@ -776,7 +844,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
           
           if (!isEmpty) ...[
             const SizedBox(height: 16),
-            const Divider(color: borderColor, height: 1),
+            Divider(color: borderColor, height: 1),
             const SizedBox(height: 8),
             ...addedItems.map((item) => _buildAddedFoodItem(item)),
           ]
@@ -793,13 +861,13 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
         backgroundColor: cardColor,
         title: Text('Modifica ${item.name}', style: const TextStyle(color: Colors.white)),
         content: item.foodId == null
-            ? Text('Attualmente: ${item.grams.round()}g', style: const TextStyle(color: textSecondary))
+            ? Text('Attualmente: ${item.grams.round()}g', style: TextStyle(color: textSecondary))
             : TextField(
                 controller: controller,
                 autofocus: true,
                 keyboardType: TextInputType.number,
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Grammi',
                   labelStyle: TextStyle(color: textSecondary),
                   suffixText: 'g',
@@ -812,12 +880,12 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Annulla', style: TextStyle(color: textSecondary)),
+            child: Text('Annulla', style: TextStyle(color: textSecondary)),
           ),
           if (item.foodId != null)
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, 'save'),
-              child: const Text('Salva', style: TextStyle(color: primaryTeal)),
+              child: Text('Salva', style: TextStyle(color: primaryTeal)),
             ),
         ],
       ),
@@ -877,9 +945,9 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                     spacing: 8,
                     runSpacing: 4,
                     children: [
-                      Text('P: ${item.proteinG.round()}g', style: const TextStyle(color: colorP, fontSize: 11)),
-                      Text('C: ${item.carbsG.round()}g', style: const TextStyle(color: colorC, fontSize: 11)),
-                      Text('G: ${item.fatG.round()}g', style: const TextStyle(color: colorG, fontSize: 11)),
+                      Text('P: ${item.proteinG.round()}g', style: TextStyle(color: colorP, fontSize: 11)),
+                      Text('C: ${item.carbsG.round()}g', style: TextStyle(color: colorC, fontSize: 11)),
+                      Text('G: ${item.fatG.round()}g', style: TextStyle(color: colorG, fontSize: 11)),
                     ],
                   ),
                 ],

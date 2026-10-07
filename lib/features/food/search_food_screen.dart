@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
@@ -27,10 +29,6 @@ class SearchFoodScreen extends StatefulWidget {
 
 class _SearchFoodScreenState extends State<SearchFoodScreen> {
   // Colori del tuo tema
-  static const Color bgColor = Color(0xFF101817);
-  static const Color cardColor = Color(0xFF17221F);
-  static const Color textSecondary = Color(0xFFA1AFA9);
-  static const Color primaryTeal = Color(0xFF127B6D);
 
   static const _debounce = Duration(milliseconds: 500);
 
@@ -192,6 +190,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
@@ -216,8 +215,8 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
                     autofocus: true, // Apre subito la tastiera
                     decoration: InputDecoration(
                       hintText: 'Cerca un alimento...',
-                      hintStyle: const TextStyle(color: textSecondary),
-                      prefixIcon: const Icon(Icons.search, color: textSecondary),
+                      hintStyle: TextStyle(color: textSecondary),
+                      prefixIcon: Icon(Icons.search, color: textSecondary),
                       filled: true,
                       fillColor: cardColor,
                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
@@ -254,7 +253,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(_filters.summary, style: const TextStyle(color: primaryTeal, fontSize: 12)),
+                    child: Text(_filters.summary, style: TextStyle(color: primaryTeal, fontSize: 12)),
                   ),
                   TextButton(
                     onPressed: () {
@@ -268,12 +267,12 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
                         setState(() => _results = []);
                       }
                     },
-                    child: const Text('Azzera', style: TextStyle(color: textSecondary, fontSize: 12)),
+                    child: Text('Azzera', style: TextStyle(color: textSecondary, fontSize: 12)),
                   ),
                 ],
               ),
             ),
-          if (_loading) const LinearProgressIndicator(color: primaryTeal, backgroundColor: cardColor),
+          if (_loading) LinearProgressIndicator(color: primaryTeal, backgroundColor: cardColor),
           Expanded(child: _buildBody()),
         ],
       ),
@@ -284,7 +283,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     if (_error != null) {
       return _buildMessage(Icons.cloud_off, _error!, action: TextButton(
         onPressed: () => _search(_query),
-        child: const Text('Riprova', style: TextStyle(color: primaryTeal)),
+        child: Text('Riprova', style: TextStyle(color: primaryTeal)),
       ));
     }
     if (!_canSearch) {
@@ -305,7 +304,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
                   ? 'Nessun alimento in catalogo con questi valori nutrizionali'
                   : 'Nessun alimento nel catalogo',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: textSecondary),
+              style: TextStyle(color: textSecondary),
             ),
           ),
         for (final food in _results) ...[
@@ -317,8 +316,8 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
               'P ${food.proteinG.round()} · C ${food.carbsG.round()} · G ${food.fatG.round()} g',
             ].join(' · '),
             trailing: food.isVerified
-                ? const Icon(Icons.verified_outlined, color: primaryTeal, size: 18)
-                : const Icon(Icons.chevron_right, color: textSecondary),
+                ? Icon(Icons.verified_outlined, color: primaryTeal, size: 18)
+                : Icon(Icons.chevron_right, color: textSecondary),
             onTap: () => _open(food),
           ),
           const SizedBox(height: 8),
@@ -327,8 +326,8 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
         if (!_loading)
           TextButton.icon(
             onPressed: _createPersonalFood,
-            icon: const Icon(Icons.edit_note, color: textSecondary),
-            label: const Text('Crea un alimento personale', style: TextStyle(color: textSecondary)),
+            icon: Icon(Icons.edit_note, color: textSecondary),
+            label: Text('Crea un alimento personale', style: TextStyle(color: textSecondary)),
           ),
         const SizedBox(height: 24),
       ],
@@ -339,7 +338,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
   /// all'utente non interessa da quale fonte arrivano.
   List<Widget> _buildOffSection() {
     if (_offLoading) {
-      return const [
+      return [
         Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))),
@@ -349,19 +348,19 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     if (_offResults == null) {
       return [
         if (_offError != null) ...[
-          Text(_offError!, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary)),
-          TextButton(onPressed: _searchOff, child: const Text('Riprova', style: TextStyle(color: primaryTeal))),
+          Text(_offError!, textAlign: TextAlign.center, style: TextStyle(color: textSecondary)),
+          TextButton(onPressed: _searchOff, child: Text('Riprova', style: TextStyle(color: primaryTeal))),
         ] else if (_query.length >= 3)
           TextButton.icon(
             onPressed: _searchOff,
-            icon: const Icon(Icons.manage_search, color: primaryTeal),
-            label: const Text('Mostra altri prodotti', style: TextStyle(color: primaryTeal)),
+            icon: Icon(Icons.manage_search, color: primaryTeal),
+            label: Text('Mostra altri prodotti', style: TextStyle(color: primaryTeal)),
           ),
       ];
     }
     if (_offResults!.isEmpty) return const [];
     return [
-      const Padding(
+      Padding(
         padding: EdgeInsets.only(top: 8, bottom: 8),
         child: Text('Altri prodotti', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
       ),
@@ -374,8 +373,8 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
             'P ${p.proteinG.round()} · C ${p.carbsG.round()} · G ${p.fatG.round()} g',
           ].join(' · '),
           trailing: _importingBarcode == p.barcode
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))
-              : const Icon(Icons.chevron_right, color: textSecondary),
+              ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))
+              : Icon(Icons.chevron_right, color: textSecondary),
           onTap: _importingBarcode == null ? () => _importOff(p) : null,
         ),
         const SizedBox(height: 8),
@@ -391,7 +390,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onTap: onTap,
         title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        subtitle: Text(subtitle, style: const TextStyle(color: textSecondary)),
+        subtitle: Text(subtitle, style: TextStyle(color: textSecondary)),
         trailing: trailing,
       ),
     );
@@ -404,7 +403,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
         children: [
           Icon(icon, size: 48, color: textSecondary),
           const SizedBox(height: 16),
-          Text(text, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary, fontSize: 16)),
+          Text(text, textAlign: TextAlign.center, style: TextStyle(color: textSecondary, fontSize: 16)),
           ?action,
         ],
       ),

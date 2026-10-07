@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/community_models.dart';
 import '../../core/models.dart';
+import '../../core/food_service.dart';
 import '../../core/recipe_service.dart';
+import '../food/food_detail_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'recipe_editor_screen.dart';
 
@@ -22,19 +26,13 @@ class RecipesPickerScreen extends StatefulWidget {
 }
 
 class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
 
   final _searchController = TextEditingController();
   Timer? _debounce;
 
   List<Recipe> _recipes = [];
+  List<PatientSuggestion> _suggestions = const [];
   bool _loading = true;
   String? _error;
   final Set<String> _restrictions = {};
@@ -48,6 +46,123 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
   void initState() {
     super.initState();
     _load();
+    _loadSuggestions();
+  }
+
+  /// Consigli che il professionista ha scelto per questo paziente
+  /// (migration 023). Valgono accanto alle ricette pubblicate per tutti.
+  Future<void> _loadSuggestions() async {
+    try {
+      final all = await SuggestionService.list();
+      if (!mounted) return;
+      setState(() {
+        // Si mostrano i consigli adatti a questo pasto, piu' gli alimenti
+        // (che non hanno un pasto associato).
+        _suggestions = all
+            .where((s) => !s.isRecipe || s.slots.isEmpty || s.slots.contains(widget.slot))
+            .toList();
+      });
+    } on AppError {
+      // i consigli sono un extra: la schermata funziona comunque
+    }
+  }
+
+  Future<void> _openSuggestion(PatientSuggestion s) async {
+    if (s.isRecipe && s.mealId != null) {
+      final logged = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => RecipeDetailScreen(recipeId: s.mealId!, initialSlot: widget.slot, date: widget.date),
+        ),
+      );
+      if (mounted && logged == true) Navigator.pop(context, true);
+      return;
+    }
+    if (s.foodId == null) return;
+    try {
+      final food = await FoodService.getFood(s.foodId!);
+      if (!mounted || food == null) return;
+      final added = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FoodDetailScreen(food: food, initialSlot: widget.slot, date: widget.date),
+        ),
+      );
+      if (mounted && added == true) Navigator.pop(context, true);
+    } on AppError catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  Widget _buildSuggestions() {
+    if (_suggestions.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(children: [
+            Icon(Icons.tips_and_updates_outlined, color: primaryTeal, size: 18),
+            const SizedBox(width: 6),
+            Text('Consigliati per te', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+        SizedBox(
+          height: 118,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _suggestions.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final s = _suggestions[i];
+              return InkWell(
+                onTap: () => _openSuggestion(s),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: 210,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: primaryTeal.withValues(alpha: 0.4)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        Icon(s.isRecipe ? Icons.menu_book_outlined : Icons.restaurant,
+                            size: 14, color: primaryTeal),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(s.authorName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: primaryTeal, fontSize: 11, fontWeight: FontWeight.w600)),
+                        ),
+                      ]),
+                      const SizedBox(height: 6),
+                      Text(s.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      Text('${s.kcal.round()} kcal per ${s.portionLabel}',
+                          style: TextStyle(color: textSecondary, fontSize: 11)),
+                      if (s.note != null)
+                        Text(s.note!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: textSecondary, fontSize: 11, fontStyle: FontStyle.italic)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -110,28 +225,30 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text('Ricette · ${widget.slot.label}',
-            style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           IconButton(
             tooltip: 'Crea la tua ricetta',
-            icon: const Icon(Icons.add, color: textPrimary),
+            icon: Icon(Icons.add, color: textPrimary),
             onPressed: _createRecipe,
           ),
         ],
       ),
       body: Column(
         children: [
+          _buildSuggestions(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: TextField(
@@ -142,15 +259,15 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
                 hintText: 'Cerca una ricetta',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: cardColor,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
+                  borderSide: BorderSide(color: borderColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
+                  borderSide: BorderSide(color: borderColor),
                 ),
               ),
             ),
@@ -213,7 +330,7 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator(color: primaryTeal));
+    if (_loading) return Center(child: CircularProgressIndicator(color: primaryTeal));
     if (_error != null) {
       return Center(
         child: Padding(
@@ -221,7 +338,7 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary)),
+              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: textSecondary)),
               const SizedBox(height: 12),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: primaryTeal),
@@ -257,9 +374,9 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
     return ListView(
       padding: const EdgeInsets.all(32),
       children: [
-        const Icon(Icons.restaurant_menu, size: 56, color: textSecondary),
+        Icon(Icons.restaurant_menu, size: 56, color: textSecondary),
         const SizedBox(height: 12),
-        Text(text, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary, fontSize: 15)),
+        Text(text, textAlign: TextAlign.center, style: TextStyle(color: textSecondary, fontSize: 15)),
         const SizedBox(height: 20),
         Center(
           child: FilledButton.icon(
@@ -280,9 +397,9 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: borderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,10 +409,10 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
               children: [
                 Expanded(
                   child: Text(r.title,
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary)),
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: textPrimary)),
                 ),
                 if (r.socialUrl != null)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(left: 8),
                     child: Icon(Icons.play_circle_outline, size: 20, color: textSecondary),
                   ),
@@ -306,18 +423,18 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
               children: [
                 Flexible(
                   child: Text(r.authorName ?? 'Autore sconosciuto',
-                      overflow: TextOverflow.ellipsis, style: const TextStyle(color: textSecondary, fontSize: 13)),
+                      overflow: TextOverflow.ellipsis, style: TextStyle(color: textSecondary, fontSize: 13)),
                 ),
                 const SizedBox(width: 6),
-                const Icon(Icons.verified, size: 14, color: primaryTeal),
+                Icon(Icons.verified, size: 14, color: primaryTeal),
                 const SizedBox(width: 2),
-                const Text('Verificata',
+                Text('Verificata',
                     style: TextStyle(color: primaryTeal, fontSize: 12, fontWeight: FontWeight.w600)),
                 if (r.prepMinutes != null) ...[
                   const SizedBox(width: 10),
-                  const Icon(Icons.schedule, size: 14, color: textSecondary),
+                  Icon(Icons.schedule, size: 14, color: textSecondary),
                   const SizedBox(width: 2),
-                  Text('${r.prepMinutes} min', style: const TextStyle(color: textSecondary, fontSize: 12)),
+                  Text('${r.prepMinutes} min', style: TextStyle(color: textSecondary, fontSize: 12)),
                 ],
               ],
             ),
@@ -325,8 +442,8 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
             Row(
               children: [
                 Text('${r.kcalPerServing.round()} kcal',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
-                const Text(' / porzione', style: TextStyle(color: textSecondary, fontSize: 12)),
+                    style: TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
+                Text(' / porzione', style: TextStyle(color: textSecondary, fontSize: 12)),
                 const Spacer(),
                 _macro('P', r.proteinPerServing, colorP),
                 const SizedBox(width: 10),
@@ -349,7 +466,7 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(dietaryRestrictionLabels[t] ?? t,
-                          style: const TextStyle(color: primaryTeal, fontSize: 11, fontWeight: FontWeight.w600)),
+                          style: TextStyle(color: primaryTeal, fontSize: 11, fontWeight: FontWeight.w600)),
                     ),
                 ],
               ),

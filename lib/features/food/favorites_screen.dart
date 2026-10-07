@@ -1,5 +1,7 @@
 
 import 'package:flutter/material.dart';
+
+import '../../core/theme.dart';
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
@@ -24,18 +26,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
   @override
   void onTabVisible() => _loadDataFromDatabase();
 
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
   
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
   
-  static const Color bgP = Color(0xFFF0EFFF);
-  static const Color bgC = Color(0xFFFEF6E5);
-  static const Color bgG = Color(0xFFFDEEE6);
 
   int _selectedFilterIndex = 0;
   final List<String> _filters = ['Tutti', 'Più usati', 'Recenti', 'Pasti salvati'];
@@ -91,12 +83,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Catalogo', style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
@@ -105,7 +98,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: textPrimary), 
+            icon: Icon(Icons.search, color: textPrimary), 
             onPressed: _openSearch,
           ),
           const SizedBox(width: 8),
@@ -118,7 +111,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
         child: const Icon(Icons.add, color: Colors.white, size: 30),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const CustomBottomNav(currentIndex: PatientTab.foods, isDarkMode: false),
+      bottomNavigationBar: CustomBottomNav(currentIndex: PatientTab.foods),
 
       body: Column(
         children: [
@@ -139,14 +132,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
                       setState(() => _selectedFilterIndex = index);
                     },
                     selectedColor: primaryTeal,
-                    backgroundColor: Colors.white,
+                    backgroundColor: cardColor,
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : textSecondary,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: isSelected ? primaryTeal : Colors.grey.shade300),
+                      side: BorderSide(color: isSelected ? primaryTeal : borderColor),
                     ),
                   ),
                 );
@@ -156,21 +149,21 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
           
           Expanded(
             child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: primaryTeal))
+              ? Center(child: CircularProgressIndicator(color: primaryTeal))
               : _error != null
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(_error!, style: const TextStyle(color: textSecondary)),
-                          TextButton(onPressed: _loadDataFromDatabase, child: const Text('Riprova', style: TextStyle(color: primaryTeal))),
+                          Text(_error!, style: TextStyle(color: textSecondary)),
+                          TextButton(onPressed: _loadDataFromDatabase, child: Text('Riprova', style: TextStyle(color: primaryTeal))),
                         ],
                       ),
                     )
               : _selectedFilterIndex == _mealsFilter
                   ? _buildPersonalMeals()
               : _filteredFoods.isEmpty
-                  ? const Center(child: Text('Nessun preferito. Cerca un alimento e salvalo.', style: TextStyle(color: textSecondary)))
+                  ? Center(child: Text('Nessun preferito. Cerca un alimento e salvalo.', style: TextStyle(color: textSecondary)))
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       itemCount: _filteredFoods.length,
@@ -186,7 +179,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
 
   Widget _buildPersonalMeals() {
     if (_personalMeals.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(24),
           child: Text(
@@ -205,20 +198,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: borderColor),
           ),
           child: ListTile(
-            leading: const Icon(Icons.bookmark_outline, color: primaryTeal),
-            title: Text(meal.name, style: const TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
+            leading: Icon(Icons.bookmark_outline, color: primaryTeal),
+            title: Text(meal.name, style: TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
             subtitle: Text(
               [if (meal.defaultSlot != null) meal.defaultSlot!.label, 'usato ${meal.useCount} volte'].join(' · '),
-              style: const TextStyle(color: textSecondary),
+              style: TextStyle(color: textSecondary),
             ),
             trailing: IconButton(
               tooltip: 'Elimina',
-              icon: const Icon(Icons.delete_outline, color: textSecondary),
+              icon: Icon(Icons.delete_outline, color: textSecondary),
               onPressed: () => _deletePersonalMeal(meal),
             ),
           ),
@@ -270,16 +263,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: borderColor),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start, 
           children: [
             Container(
               width: 60, height: 60,
-              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: borderColor, borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.restaurant, color: Colors.grey),
             ),
             const SizedBox(width: 12),
@@ -303,13 +296,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
                         ),
                       const Spacer(),
                       if (isVerified)
-                         const Icon(Icons.verified_outlined, size: 16, color: primaryTeal),
+                         Icon(Icons.verified_outlined, size: 16, color: primaryTeal),
                     ],
                   ),
                   
                   Text(
                     [food.name, if (food.brandLabel != null) food.brandLabel!, '$grams g'].join(' · '),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textPrimary),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: textPrimary),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis
                   ),
@@ -326,7 +319,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text('${(food.kcal * ratio).round()} kcal', style: const TextStyle(color: textSecondary, fontSize: 12)),
+                  Text('${(food.kcal * ratio).round()} kcal', style: TextStyle(color: textSecondary, fontSize: 12)),
                 ],
               ),
             ),

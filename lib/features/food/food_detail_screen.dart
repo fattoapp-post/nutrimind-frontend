@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
@@ -18,18 +20,8 @@ class FoodDetailScreen extends StatefulWidget {
 }
 
 class _FoodDetailScreenState extends State<FoodDetailScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
   
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
   
-  static const Color bgP = Color(0xFFF0EFFF);
-  static const Color bgC = Color(0xFFFEF6E5);
-  static const Color bgG = Color(0xFFFDEEE6);
 
   late int _currentGrams;
   bool _isFavorite = false;
@@ -90,6 +82,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final food = widget.food;
     final bool isVerified = food.isVerified;
 
@@ -106,13 +99,13 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
         backgroundColor: bgColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Dettaglio alimento', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
+        title: Text('Dettaglio alimento', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
-          IconButton(icon: const Icon(Icons.more_horiz, color: textPrimary), onPressed: () {}),
+          IconButton(icon: Icon(Icons.more_horiz, color: textPrimary), onPressed: () {}),
         ],
       ),
       body: SingleChildScrollView(
@@ -128,9 +121,9 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(food.name, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textPrimary)),
+                      Text(food.name, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textPrimary)),
                       if (food.subtitle.isNotEmpty)
-                        Text(food.subtitle, style: const TextStyle(fontSize: 16, color: textSecondary)),
+                        Text(food.subtitle, style: TextStyle(fontSize: 16, color: textSecondary)),
                     ],
                   ),
                 ),
@@ -149,16 +142,16 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Center(child: Text('$calcKcal kcal · dato ricalcolato', style: const TextStyle(color: textSecondary))),
+            Center(child: Text('$calcKcal kcal · dato ricalcolato', style: TextStyle(color: textSecondary))),
             const SizedBox(height: 32),
             
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
+              decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: borderColor)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Quantità', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
@@ -175,8 +168,8 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                       RichText(
                         text: TextSpan(
                           children: [
-                            TextSpan(text: '$_currentGrams', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary)),
-                            const TextSpan(text: ' g', style: TextStyle(fontSize: 18, color: textSecondary)),
+                            TextSpan(text: '$_currentGrams', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary)),
+                            TextSpan(text: ' g', style: TextStyle(fontSize: 18, color: textSecondary)),
                           ],
                         ),
                       ),
@@ -186,7 +179,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.sync, color: primaryTeal, size: 16),
                       SizedBox(width: 8),
@@ -229,7 +222,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                           : food.isUserCreated
                               ? 'Alimento personale inserito da te: non è ancora stato revisionato.'
                               : 'Valori non ancora verificati. Controlla la confezione prima di registrare.',
-                      style: const TextStyle(color: textPrimary),
+                      style: TextStyle(color: textPrimary),
                     ),
                   ),
                 ],
@@ -271,7 +264,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                     backgroundColor: _isFavorite ? primaryTeal : Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: const BorderSide(color: primaryTeal),
+                    side: BorderSide(color: primaryTeal),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                 ),
@@ -311,23 +304,23 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
       ('Fibre', food.fiberG, 'g', false),
       ('Sale', food.saltG, 'g', false),
     ];
-    const header = TextStyle(color: textSecondary, fontSize: 12, fontWeight: FontWeight.bold);
+    final header = TextStyle(color: textSecondary, fontSize: 12, fontWeight: FontWeight.bold);
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: borderColor)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Valori nutrizionali', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
+          Text('Valori nutrizionali', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
           if (food.quantityText != null)
-            Text('Confezione: ${food.quantityText}', style: const TextStyle(color: textSecondary)),
+            Text('Confezione: ${food.quantityText}', style: TextStyle(color: textSecondary)),
           const SizedBox(height: 12),
           Table(
             columnWidths: const {0: FlexColumnWidth(2), 1: FlexColumnWidth(1), 2: FlexColumnWidth(1)},
             children: [
               TableRow(children: [
                 const SizedBox.shrink(),
-                const Text('100 g', textAlign: TextAlign.right, style: header),
+                Text('100 g', textAlign: TextAlign.right, style: header),
                 Text('$_currentGrams g', textAlign: TextAlign.right, style: header),
               ]),
               for (final (label, value, unit, indent) in rows)
@@ -373,7 +366,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     Widget badge(String title, String value, Color color, String caption) => Expanded(
           child: Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200)),
+            decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: borderColor)),
             child: Row(children: [
               Container(
                 width: 36,
@@ -385,8 +378,8 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
-                  Text(caption, style: const TextStyle(color: textSecondary, fontSize: 12)),
+                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
+                  Text(caption, style: TextStyle(color: textSecondary, fontSize: 12)),
                 ]),
               ),
             ]),
@@ -406,12 +399,12 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
   Widget _buildIngredients(Food food) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24), border: Border.all(color: borderColor)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (food.allergensText != null || food.tracesText != null) ...[
-            const Row(children: [
+            Row(children: [
               Icon(Icons.warning_amber_rounded, color: Color(0xFFEE8100), size: 20),
               SizedBox(width: 6),
               Text('Allergeni', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
@@ -419,13 +412,13 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             const SizedBox(height: 6),
             if (food.allergensText != null) Text(_cleanTags(food.allergensText!)),
             if (food.tracesText != null)
-              Text('Può contenere tracce di: ${_cleanTags(food.tracesText!)}', style: const TextStyle(color: textSecondary)),
+              Text('Può contenere tracce di: ${_cleanTags(food.tracesText!)}', style: TextStyle(color: textSecondary)),
             const SizedBox(height: 12),
           ],
           if (food.ingredientsText != null) ...[
-            const Text('Ingredienti', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
+            Text('Ingredienti', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
             const SizedBox(height: 6),
-            Text(food.ingredientsText!, style: const TextStyle(color: textPrimary, height: 1.4)),
+            Text(food.ingredientsText!, style: TextStyle(color: textPrimary, height: 1.4)),
           ],
         ],
       ),
@@ -463,7 +456,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(name, style: const TextStyle(color: textSecondary, fontSize: 12)),
+          Text(name, style: TextStyle(color: textSecondary, fontSize: 12)),
         ],
       ),
     );
@@ -478,7 +471,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
         height: 50,
         decoration: BoxDecoration(
           color: isFilled ? primaryTeal : Colors.transparent,
-          border: isFilled ? null : Border.all(color: Colors.grey.shade300),
+          border: isFilled ? null : Border.all(color: borderColor),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Icon(icon, color: isFilled ? Colors.white : textPrimary),
@@ -489,7 +482,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
   Widget _buildVerificationBadge(bool isVerified) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: isVerified ? const Color(0xFFE6F4F1) : Colors.grey.shade200, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: isVerified ? const Color(0xFFE6F4F1) : borderColor, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Icon(isVerified ? Icons.verified_outlined : Icons.info_outline, size: 14, color: isVerified ? primaryTeal : textSecondary),
@@ -537,7 +530,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Aggiungi al diario', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('Aggiungi al diario', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               ...MealSlot.values.map((slot) => ListTile(
                 title: Text(

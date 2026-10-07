@@ -380,3 +380,62 @@ class ChatMessage {
         readAt: _date(json['read_at']),
       );
 }
+
+/// Riga di `get_patient_suggestions`: una ricetta o un alimento che il
+/// professionista ha indicato a quel paziente in particolare.
+class PatientSuggestion {
+  final String id;
+
+  /// `recipe` oppure `food`.
+  final String kind;
+  final String? mealId;
+  final String? foodId;
+  final String title;
+  final String? note;
+
+  /// Per una ricetta è una porzione, per un alimento 100 g.
+  final double kcal;
+  final double proteinG;
+  final double carbsG;
+  final double fatG;
+  final List<MealSlot> slots;
+  final String authorName;
+  final DateTime? createdAt;
+
+  const PatientSuggestion({
+    required this.id,
+    required this.kind,
+    this.mealId,
+    this.foodId,
+    required this.title,
+    this.note,
+    this.kcal = 0,
+    this.proteinG = 0,
+    this.carbsG = 0,
+    this.fatG = 0,
+    this.slots = const [],
+    this.authorName = 'Il tuo nutrizionista',
+    this.createdAt,
+  });
+
+  bool get isRecipe => kind == 'recipe';
+
+  /// "una porzione" o "100 g": l'unità a cui si riferiscono i valori.
+  String get portionLabel => isRecipe ? 'una porzione' : '100 g';
+
+  factory PatientSuggestion.fromJson(Map<String, dynamic> json) => PatientSuggestion(
+        id: json['id'] as String,
+        kind: (json['kind'] as String?) ?? 'food',
+        mealId: json['meal_id'] as String?,
+        foodId: json['food_id'] as String?,
+        title: (json['title'] as String?) ?? 'Consiglio',
+        note: _text(json['note']),
+        kcal: _num(json['kcal']),
+        proteinG: _num(json['protein_g']),
+        carbsG: _num(json['carbs_g']),
+        fatG: _num(json['fat_g']),
+        slots: _strings(json['meal_slots']).map(MealSlot.fromValue).toList(),
+        authorName: (json['author_name'] as String?) ?? 'Il tuo nutrizionista',
+        createdAt: _date(json['created_at']),
+      );
+}

@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import '../../core/theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_error.dart';
@@ -33,7 +35,6 @@ abstract final class NutritionistTab {
 }
 
 class _NutritionistShellState extends State<NutritionistShell> {
-  static const Color primaryTeal = Color(0xFF127B6D);
 
   final _tab = ValueNotifier<int>(NutritionistTab.patients);
   int _unread = 0;
@@ -66,6 +67,7 @@ class _NutritionistShellState extends State<NutritionistShell> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return PatientShellScope(
       tab: _tab,
       child: ValueListenableBuilder<int>(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/community_models.dart';
 import '../../core/recipe_service.dart';
@@ -19,13 +21,7 @@ class MyRecipesScreen extends StatefulWidget {
 }
 
 class _MyRecipesScreenState extends State<MyRecipesScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
 
   List<Recipe> _mine = [];
   bool _loadingMine = true;
@@ -102,6 +98,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final fab = FloatingActionButton.extended(
       backgroundColor: primaryTeal,
       foregroundColor: Colors.white,
@@ -110,11 +107,11 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
       label: const Text('Nuova ricetta'),
     );
     final appBarTitle = Text(widget.embedded ? 'Ricette' : 'Le mie ricette',
-        style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold));
+        style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold));
     final leading = widget.embedded
         ? null
         : IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: textPrimary),
+            icon: Icon(Icons.arrow_back_ios_new, color: textPrimary),
             onPressed: () => Navigator.pop(context),
           );
 
@@ -163,7 +160,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
   }
 
   Widget _buildMine() {
-    if (_loadingMine && _mine.isEmpty) return const Center(child: CircularProgressIndicator(color: primaryTeal));
+    if (_loadingMine && _mine.isEmpty) return Center(child: CircularProgressIndicator(color: primaryTeal));
     if (_mineError != null && _mine.isEmpty) return _buildError(_mineError!, _loadMine);
     if (_mine.isEmpty) {
       return _buildEmpty(
@@ -192,7 +189,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
 
   Widget _buildReview() {
     if (_loadingReview && _toReview.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: primaryTeal));
+      return Center(child: CircularProgressIndicator(color: primaryTeal));
     }
     if (_reviewError != null && _toReview.isEmpty) return _buildError(_reviewError!, _loadReview);
     if (_toReview.isEmpty) {
@@ -220,7 +217,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(r.title,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
                       const SizedBox(height: 4),
                       Text(
                         [
@@ -228,12 +225,12 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
                           '${r.kcalTotal.round()} kcal totali',
                           if (r.createdAt != null) _fmtDate(r.createdAt!),
                         ].join(' · '),
-                        style: const TextStyle(color: textSecondary, fontSize: 13),
+                        style: TextStyle(color: textSecondary, fontSize: 13),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: textSecondary),
+                Icon(Icons.chevron_right, color: textSecondary),
               ],
             ),
           );
@@ -251,7 +248,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(r.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
+                Text(r.title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -261,7 +258,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
                       child: Text(
                         '${r.kcalPerServing.round()} kcal / porzione',
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: textSecondary, fontSize: 13),
+                        style: TextStyle(color: textSecondary, fontSize: 13),
                       ),
                     ),
                   ],
@@ -269,7 +266,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: textSecondary),
+          Icon(Icons.chevron_right, color: textSecondary),
         ],
       ),
     );
@@ -295,9 +292,9 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: borderColor),
           ),
           child: child,
         ),
@@ -309,7 +306,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(message, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary)),
+              Text(message, textAlign: TextAlign.center, style: TextStyle(color: textSecondary)),
               const SizedBox(height: 12),
               FilledButton(
                 style: FilledButton.styleFrom(backgroundColor: primaryTeal),
@@ -331,7 +328,7 @@ class _MyRecipesScreenState extends State<MyRecipesScreen> {
             const SizedBox(height: 40),
             Icon(icon, size: 56, color: textSecondary),
             const SizedBox(height: 12),
-            Text(text, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary, fontSize: 15)),
+            Text(text, textAlign: TextAlign.center, style: TextStyle(color: textSecondary, fontSize: 15)),
             if (action != null) ...[
               const SizedBox(height: 20),
               Center(child: action),

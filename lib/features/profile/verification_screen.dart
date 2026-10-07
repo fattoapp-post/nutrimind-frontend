@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/account_service.dart';
 import '../../core/app_error.dart';
 import '../../core/models.dart';
@@ -61,6 +63,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final v = _verification;
     final canRequest = v == null || v.status == 'rejected';
     return SettingsPage(

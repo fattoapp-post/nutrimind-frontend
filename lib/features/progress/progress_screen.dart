@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
@@ -16,13 +18,6 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color colorP = Color(0xFF5A44F2);
-  static const Color colorC = Color(0xFFF0A500);
-  static const Color colorG = Color(0xFFEB5A0C);
 
   int _rangeDays = 7;
   AdherenceSummary? _summary;
@@ -61,13 +56,14 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final s = _summary;
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Progressi', style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
@@ -75,7 +71,7 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
           ],
         ),
       ),
-      bottomNavigationBar: const CustomBottomNav(currentIndex: PatientTab.progress, isDarkMode: false),
+      bottomNavigationBar: CustomBottomNav(currentIndex: PatientTab.progress),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
@@ -93,13 +89,13 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
               },
             ),
             const SizedBox(height: 16),
-            if (_loading) const LinearProgressIndicator(color: primaryTeal),
+            if (_loading) LinearProgressIndicator(color: primaryTeal),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Column(children: [
-                  Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary)),
-                  TextButton(onPressed: _load, child: const Text('Riprova', style: TextStyle(color: primaryTeal))),
+                  Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: textSecondary)),
+                  TextButton(onPressed: _load, child: Text('Riprova', style: TextStyle(color: primaryTeal))),
                 ]),
               ),
             if (s != null) ...[
@@ -107,7 +103,7 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
               const SizedBox(height: 16),
               if (s.planDays == 0)
                 _card(
-                  child: const Row(children: [
+                  child: Row(children: [
                     Icon(Icons.info_outline, color: primaryTeal),
                     SizedBox(width: 12),
                     Expanded(
@@ -135,8 +131,8 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
             child: Column(children: [
               Icon(icon, color: primaryTeal),
               const SizedBox(height: 8),
-              Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textPrimary)),
-              Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: textSecondary)),
+              Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: textPrimary)),
+              Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: textSecondary)),
             ]),
           ),
         );
@@ -157,8 +153,8 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Calorie per giorno', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
-          Text('Media nei giorni registrati: ${s.averageKcalLogged.round()} kcal', style: const TextStyle(color: textSecondary)),
+          Text('Calorie per giorno', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
+          Text('Media nei giorni registrati: ${s.averageKcalLogged.round()} kcal', style: TextStyle(color: textSecondary)),
           const SizedBox(height: 16),
           SizedBox(
             height: 140,
@@ -180,7 +176,7 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: !d.logged
-                                      ? Colors.grey.shade300
+                                      ? borderColor
                                       : (d.onTarget == true ? primaryTeal : primaryTeal.withValues(alpha: 0.45)),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
@@ -207,7 +203,7 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
                   child: Text(
                     short[d.date.weekday - 1],
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: textSecondary, fontSize: 12),
+                    style: TextStyle(color: textSecondary, fontSize: 12),
                   ),
                 ),
             ]),
@@ -216,7 +212,7 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
           Wrap(spacing: 16, runSpacing: 4, children: [
             _legend(primaryTeal, 'In target'),
             _legend(primaryTeal.withValues(alpha: 0.45), 'Fuori target'),
-            _legend(Colors.grey.shade300, 'Non registrato'),
+            _legend(borderColor, 'Non registrato'),
             _legend(colorC, 'Obiettivo', line: true),
           ]),
         ],
@@ -241,7 +237,7 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
             const Spacer(),
             Text(
               target > 0 ? '${value.round()} / ${target.round()} g' : '${value.round()} g',
-              style: const TextStyle(color: textPrimary),
+              style: TextStyle(color: textPrimary),
             ),
           ]),
           const SizedBox(height: 6),
@@ -260,9 +256,9 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
 
     return _card(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Media giornaliera dei macro', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
+        Text('Media giornaliera dei macro', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textPrimary)),
         if (logged.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text('Registra i tuoi pasti per vedere le medie.', style: TextStyle(color: textSecondary)),
           )
@@ -278,15 +274,15 @@ class _ProgressScreenState extends State<ProgressScreen> with ReloadOnTabVisible
   Widget _legend(Color color, String label, {bool line = false}) => Row(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 12, height: line ? 2 : 12, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: textSecondary, fontSize: 12)),
+        Text(label, style: TextStyle(color: textSecondary, fontSize: 12)),
       ]);
 
   Widget _card({required Widget child}) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardColor,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: borderColor),
         ),
         child: child,
       );

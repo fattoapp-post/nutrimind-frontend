@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/community_models.dart';
 import '../../core/directory_service.dart';
@@ -17,10 +19,6 @@ class FindNutritionistScreen extends StatefulWidget {
 }
 
 class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   final _searchController = TextEditingController();
   Timer? _debounce;
@@ -93,12 +91,13 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
-        title: const Text(
+        title: Text(
           'Trova un nutrizionista',
           style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
         ),
@@ -117,21 +116,21 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
               },
               decoration: InputDecoration(
                 hintText: 'Nome, studio, città…',
-                prefixIcon: const Icon(Icons.search, color: textSecondary),
+                prefixIcon: Icon(Icons.search, color: textSecondary),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: cardColor,
                 isDense: true,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
+                  borderSide: BorderSide(color: borderColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide(color: Colors.grey.shade200),
+                  borderSide: BorderSide(color: borderColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(color: primaryTeal),
+                  borderSide: BorderSide(color: primaryTeal),
                 ),
               ),
             ),
@@ -160,8 +159,8 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
                 showCheckmark: false,
                 selectedColor: primaryTeal,
                 labelStyle: TextStyle(color: _onlineOnly ? Colors.white : textPrimary),
-                backgroundColor: Colors.white,
-                side: BorderSide(color: Colors.grey.shade200),
+                backgroundColor: cardColor,
+                side: BorderSide(color: borderColor),
                 onSelected: (v) {
                   setState(() => _onlineOnly = v);
                   _load();
@@ -208,8 +207,8 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
       selected: selected,
       showCheckmark: false,
       selectedColor: primaryTeal,
-      backgroundColor: Colors.white,
-      side: BorderSide(color: selected ? primaryTeal : Colors.grey.shade200),
+      backgroundColor: cardColor,
+      side: BorderSide(color: selected ? primaryTeal : borderColor),
       labelStyle: TextStyle(color: selected ? Colors.white : textPrimary),
       onSelected: onSelected,
     );
@@ -217,14 +216,14 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
 
   Widget _buildResults() {
     if (_loading && _items.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: primaryTeal));
+      return Center(child: CircularProgressIndicator(color: primaryTeal));
     }
     if (_error != null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, style: const TextStyle(color: textSecondary)),
+            Text(_error!, style: TextStyle(color: textSecondary)),
             TextButton(onPressed: _load, child: const Text('Riprova')),
           ],
         ),
@@ -238,17 +237,17 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
               padding: const EdgeInsets.all(32),
               children: [
                 const SizedBox(height: 40),
-                const Icon(Icons.verified_outlined, size: 56, color: textSecondary),
+                Icon(Icons.verified_outlined, size: 56, color: textSecondary),
                 const SizedBox(height: 16),
                 Text(
                   _hasFilters
                       ? 'Nessun nutrizionista corrisponde ai filtri scelti.'
                       : 'Nessun nutrizionista disponibile.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Qui compaiono solo professionisti con abilitazione verificata '
                   'che hanno scelto di rendere pubblico il proprio profilo.',
                   textAlign: TextAlign.center,
@@ -259,7 +258,7 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
                   Center(
                     child: TextButton(
                       onPressed: _clearFilters,
-                      child: const Text('Rimuovi i filtri', style: TextStyle(color: primaryTeal)),
+                      child: Text('Rimuovi i filtri', style: TextStyle(color: primaryTeal)),
                     ),
                   ),
                 ],
@@ -274,7 +273,7 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
                   itemBuilder: (context, i) => _buildCard(_items[i]),
                 ),
                 if (_loading)
-                  const Positioned(
+                  Positioned(
                     top: 0,
                     left: 0,
                     right: 0,
@@ -285,17 +284,18 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
     );
   }
 
-  Widget _tag(String text, {Color color = primaryTeal, IconData? icon}) {
+  Widget _tag(String text, {Color? color, IconData? icon}) {
+    final c = color ?? primaryTeal;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 14, color: color), const SizedBox(width: 4)],
+          if (icon != null) ...[Icon(icon, size: 14, color: c), const SizedBox(width: 4)],
           Text(
             text,
-            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -305,10 +305,10 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
   Widget _buildCard(NutritionistCard c) {
     final place = [if (c.city != null) c.city!, if (c.online) 'Online'].join(' · ');
     return Material(
-      color: Colors.white,
+      color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: borderColor),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -326,7 +326,7 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
                     backgroundColor: primaryTeal.withValues(alpha: 0.12),
                     child: Text(
                       c.displayName.isNotEmpty ? c.displayName.characters.first.toUpperCase() : '?',
-                      style: const TextStyle(color: primaryTeal, fontWeight: FontWeight.bold, fontSize: 18),
+                      style: TextStyle(color: primaryTeal, fontWeight: FontWeight.bold, fontSize: 18),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -341,30 +341,30 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
                                 c.displayName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Tooltip(
+                            Tooltip(
                               message: 'Professionista verificato',
                               child: Icon(Icons.verified, size: 18, color: primaryTeal),
                             ),
                           ],
                         ),
-                        Text(c.professionLabel, style: const TextStyle(color: textSecondary)),
+                        Text(c.professionLabel, style: TextStyle(color: textSecondary)),
                         if (place.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Row(
                               children: [
-                                const Icon(Icons.place_outlined, size: 14, color: textSecondary),
+                                Icon(Icons.place_outlined, size: 14, color: textSecondary),
                                 const SizedBox(width: 2),
                                 Flexible(
                                   child: Text(
                                     place,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: textSecondary, fontSize: 12),
+                                    style: TextStyle(color: textSecondary, fontSize: 12),
                                   ),
                                 ),
                               ],
@@ -381,7 +381,7 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
                   c.headline!,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: textPrimary),
+                  style: TextStyle(color: textPrimary),
                 ),
               ],
               if (c.specialties.isNotEmpty) ...[
@@ -400,7 +400,7 @@ class _FindNutritionistScreenState extends State<FindNutritionistScreen> {
                 children: [
                   Text(
                     '${c.recipesCount} ricette · ${c.plansCount} piani',
-                    style: const TextStyle(color: textSecondary, fontSize: 12),
+                    style: TextStyle(color: textSecondary, fontSize: 12),
                   ),
                   if (c.isMyNutritionist) _tag('Il tuo nutrizionista', icon: Icons.check_circle),
                   if (!c.acceptingPatients) _tag('Non accetta nuovi pazienti', color: textSecondary, icon: Icons.block),

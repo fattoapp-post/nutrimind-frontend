@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/account_service.dart';
@@ -30,10 +32,6 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   final _input = TextEditingController();
   final _scroll = ScrollController();
@@ -180,7 +178,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final recipe = await showModalBottomSheet<Recipe>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: cardColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => const _RecipePickerSheet(),
     );
@@ -225,6 +223,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
@@ -232,20 +231,20 @@ class _ChatScreenState extends State<ChatScreen> {
         elevation: 0,
         title: Text(
           widget.otherName,
-          style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
           if (widget.iAmNutritionist && !_linked)
             IconButton(
               tooltip: 'Invia invito',
-              icon: const Icon(Icons.person_add, color: primaryTeal),
+              icon: Icon(Icons.person_add, color: primaryTeal),
               onPressed: _sendInvitation,
             ),
           if (widget.iAmNutritionist)
             IconButton(
               tooltip: 'Condividi ricetta',
-              icon: const Icon(Icons.menu_book, color: primaryTeal),
+              icon: Icon(Icons.menu_book, color: primaryTeal),
               onPressed: _shareRecipe,
             ),
         ],
@@ -271,19 +270,19 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline, size: 18, color: primaryTeal),
+          Icon(Icons.lock_outline, size: 18, color: primaryTeal),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'I messaggi sono visibili solo a te e a ${widget.otherName}. '
               'Non condividere dati sanitari sensibili non necessari.',
-              style: const TextStyle(color: textSecondary, fontSize: 12),
+              style: TextStyle(color: textSecondary, fontSize: 12),
             ),
           ),
           IconButton(
             tooltip: 'Chiudi',
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.close, size: 18, color: textSecondary),
+            icon: Icon(Icons.close, size: 18, color: textSecondary),
             onPressed: () => setState(() => _showPrivacy = false),
           ),
         ],
@@ -293,14 +292,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildBody() {
     if (_loading && _messages.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: primaryTeal));
+      return Center(child: CircularProgressIndicator(color: primaryTeal));
     }
     if (_error != null && _messages.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, style: const TextStyle(color: textSecondary)),
+            Text(_error!, style: TextStyle(color: textSecondary)),
             TextButton(onPressed: _load, child: const Text('Riprova')),
           ],
         ),
@@ -313,7 +312,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Text(
             'Nessun messaggio. Scrivi a ${widget.otherName} per iniziare.',
             textAlign: TextAlign.center,
-            style: const TextStyle(color: textSecondary),
+            style: TextStyle(color: textSecondary),
           ),
         ),
       );
@@ -354,21 +353,21 @@ class _ChatScreenState extends State<ChatScreen> {
             child: content,
           ),
           const SizedBox(height: 2),
-          Text(_time(m.createdAt), style: const TextStyle(color: textSecondary, fontSize: 11)),
+          Text(_time(m.createdAt), style: TextStyle(color: textSecondary, fontSize: 11)),
         ],
       ),
     );
   }
 
   BoxDecoration _bubbleDecoration(bool mine) => BoxDecoration(
-    color: mine ? primaryTeal : Colors.white,
+    color: mine ? primaryTeal : cardColor,
     borderRadius: BorderRadius.only(
       topLeft: const Radius.circular(18),
       topRight: const Radius.circular(18),
       bottomLeft: Radius.circular(mine ? 18 : 4),
       bottomRight: Radius.circular(mine ? 4 : 18),
     ),
-    border: mine ? null : Border.all(color: Colors.grey.shade200),
+    border: mine ? null : Border.all(color: borderColor),
   );
 
   Widget _buildTextBubble(ChatMessage m, bool mine) {
@@ -383,9 +382,9 @@ class _ChatScreenState extends State<ChatScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,12 +397,12 @@ class _ChatScreenState extends State<ChatScreen> {
               Flexible(
                 child: Text(
                   title,
-                  style: const TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          if (body.isNotEmpty) ...[const SizedBox(height: 6), Text(body, style: const TextStyle(color: textSecondary))],
+          if (body.isNotEmpty) ...[const SizedBox(height: 6), Text(body, style: TextStyle(color: textSecondary))],
           if (action != null) ...[const SizedBox(height: 10), action],
         ],
       ),
@@ -414,7 +413,7 @@ class _ChatScreenState extends State<ChatScreen> {
     Widget? action;
     if (!widget.iAmNutritionist && !mine) {
       if (_linked) {
-        action = const Row(
+        action = Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.check_circle, color: primaryTeal, size: 18),
@@ -455,7 +454,7 @@ class _ChatScreenState extends State<ChatScreen> {
           : OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: primaryTeal,
-                side: const BorderSide(color: primaryTeal),
+                side: BorderSide(color: primaryTeal),
               ),
               onPressed: () => _openRecipe(id),
               icon: const Icon(Icons.open_in_new, size: 18),
@@ -470,8 +469,8 @@ class _ChatScreenState extends State<ChatScreen> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          color: cardColor,
+          border: Border(top: BorderSide(color: borderColor)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -495,15 +494,15 @@ class _ChatScreenState extends State<ChatScreen> {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: borderColor),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: borderColor),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
-                    borderSide: const BorderSide(color: primaryTeal),
+                    borderSide: BorderSide(color: primaryTeal),
                   ),
                 ),
               ),
@@ -539,13 +538,12 @@ class _ConsentDialog extends StatefulWidget {
 }
 
 class _ConsentDialogState extends State<_ConsentDialog> {
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   final Set<ConsentScope> _scopes = {ConsentScope.adherence, ConsentScope.diary};
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return AlertDialog(
       title: const Text('Collegati al nutrizionista'),
       content: SingleChildScrollView(
@@ -555,7 +553,7 @@ class _ConsentDialogState extends State<_ConsentDialog> {
           children: [
             Text(
               'Scegli cosa può vedere ${widget.nutritionistName}. Puoi cambiare idea in qualsiasi momento dal profilo.',
-              style: const TextStyle(color: textSecondary),
+              style: TextStyle(color: textSecondary),
             ),
             const SizedBox(height: 8),
             for (final s in ConsentScope.values)
@@ -590,9 +588,6 @@ class _RecipePickerSheet extends StatefulWidget {
 }
 
 class _RecipePickerSheetState extends State<_RecipePickerSheet> {
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   List<Recipe> _recipes = [];
   bool _loading = true;
@@ -621,9 +616,10 @@ class _RecipePickerSheetState extends State<_RecipePickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final Widget body;
     if (_loading) {
-      body = const Padding(
+      body = Padding(
         padding: EdgeInsets.all(32),
         child: Center(child: CircularProgressIndicator(color: primaryTeal)),
       );
@@ -633,13 +629,13 @@ class _RecipePickerSheetState extends State<_RecipePickerSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(_error!, style: const TextStyle(color: textSecondary)),
+            Text(_error!, style: TextStyle(color: textSecondary)),
             TextButton(onPressed: _load, child: const Text('Riprova')),
           ],
         ),
       );
     } else if (_recipes.isEmpty) {
-      body = const Padding(
+      body = Padding(
         padding: EdgeInsets.all(24),
         child: Text(
           'Non hai ancora ricette pubblicate da condividere.',
@@ -652,18 +648,18 @@ class _RecipePickerSheetState extends State<_RecipePickerSheet> {
         child: ListView.separated(
           shrinkWrap: true,
           itemCount: _recipes.length,
-          separatorBuilder: (_, _) => Divider(height: 1, color: Colors.grey.shade200),
+          separatorBuilder: (_, _) => Divider(height: 1, color: borderColor),
           itemBuilder: (context, i) {
             final r = _recipes[i];
             return ListTile(
-              leading: const Icon(Icons.restaurant_menu, color: primaryTeal),
+              leading: Icon(Icons.restaurant_menu, color: primaryTeal),
               title: Text(
                 r.title,
-                style: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+                style: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
               ),
               subtitle: Text(
                 '${r.kcalPerServing.round()} kcal/porzione · ${r.statusLabel}',
-                style: const TextStyle(color: textSecondary),
+                style: TextStyle(color: textSecondary),
               ),
               onTap: () => Navigator.pop(context, r),
             );
@@ -677,7 +673,7 @@ class _RecipePickerSheetState extends State<_RecipePickerSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
                 'Condividi ricetta',

@@ -20,6 +20,7 @@ Future<void> main() async {
   if (_enableSemantics) SemanticsBinding.instance.ensureSemantics();
 
   AppConfig.validate();
+  await themeController.load();
   await Supabase.initialize(
     url: AppConfig.supabaseUrl,
     publishableKey: AppConfig.supabaseAnonKey,
@@ -34,11 +35,18 @@ class NutriMindApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'NutriMind',
-      debugShowCheckedModeBanner: false,
-      theme: buildTheme(),
-      home: const AuthGate(),
+    // Al cambio di tema si ricostruisce tutto l'albero: è così che le
+    // schermate rileggono la tavolozza (vedi core/theme.dart).
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeController,
+      builder: (context, mode, _) => MaterialApp(
+        title: 'NutriMind',
+        debugShowCheckedModeBanner: false,
+        theme: buildTheme(Brightness.light),
+        darkTheme: buildTheme(Brightness.dark),
+        themeMode: mode,
+        home: const AuthGate(),
+      ),
     );
   }
 }

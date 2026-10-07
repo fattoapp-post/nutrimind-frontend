@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/account_service.dart';
 import '../../core/app_error.dart';
 import '../../core/community_models.dart';
@@ -137,6 +139,7 @@ class _PublicProfileEditorScreenState extends State<PublicProfileEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     if (_loading || _error != null) {
       return SettingsPage(title: 'Profilo pubblico', busy: _loading, children: [
         if (_error != null) Text(_error!),

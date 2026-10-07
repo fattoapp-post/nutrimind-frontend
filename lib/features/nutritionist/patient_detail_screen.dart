@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/account_service.dart';
 import '../../core/app_error.dart';
 import '../../core/models.dart';
+import '../../core/community_models.dart';
 import '../../core/nutritionist_service.dart';
+import '../../core/plan_service.dart';
+import '../../core/recipe_service.dart';
+import '../plan/macro_plan_editor_screen.dart';
+import 'suggest_to_patient_sheet.dart';
 
 /// Dettaglio paziente per il nutrizionista: aderenza, diario con commenti,
 /// nuovo commento e nuovo piano macro. Ogni sezione dipende dai consensi
@@ -18,8 +25,6 @@ class PatientDetailScreen extends StatefulWidget {
 }
 
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   int _rangeDays = 7;
   late DateTime _to;
@@ -30,7 +35,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   List<DiaryMealWithComments> _diary = [];
   String? _diaryError;
   PatientSettings? _settings;
-  ({String name, DateTime? validFrom, List<Map<String, dynamic>> targets})? _plan;
+  MacroPlan? _plan;
+  List<PatientSuggestion> _suggestions = const [];
   bool _loading = true;
 
   @override
@@ -64,9 +70,14 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       _settings = null; // consenso `profile` non concesso
     }
     try {
-      _plan = await NutritionistService.getCurrentPlan(widget.patient.patientId);
+      _plan = await PlanService.getCurrentPlan(patientId: widget.patient.patientId);
     } on AppError {
       _plan = null;
+    }
+    try {
+      _suggestions = await SuggestionService.list(patientId: widget.patient.patientId);
+    } on AppError {
+      _suggestions = const [];
     }
   }
 
@@ -145,7 +156,13 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   Future<void> _newPlan() async {
     final created = await Navigator.push<bool>(
       context,
-      MaterialPageRoute(builder: (_) => _MacroPlanForm(patient: widget.patient)),
+      MaterialPageRoute(
+        builder: (_) => MacroPlanEditorScreen(
+          patientId: widget.patient.patientId,
+          patientName: widget.patient.displayName,
+          current: _plan,
+        ),
+      ),
     );
     if (created == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Piano macro creato.')));
@@ -155,6 +172,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.patient.displayName),
@@ -192,7 +210,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               },
             ),
             const SizedBox(height: 12),
-            if (_loading) const LinearProgressIndicator(color: primaryTeal),
+            if (_loading) LinearProgressIndicator(color: primaryTeal),
             _buildSummary(),
             const SizedBox(height: 16),
             _buildRestrictions(),
@@ -205,6 +223,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
               label: Text(_plan == null ? 'Imposta piano macro' : 'Imposta nuovo piano macro'),
             ),
             const SizedBox(height: 24),
+            _buildSuggestions(),
+            const SizedBox(height: 24),
             Text('Diario', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             ..._buildDiary(),
@@ -216,7 +236,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
   Widget _buildSummary() {
     if (_summaryError != null) {
-      return Text('Aderenza non disponibile: $_summaryError', style: const TextStyle(color: textSecondary));
+      return Text('Aderenza non disponibile: $_summaryError', style: TextStyle(color: textSecondary));
     }
     final s = _summary;
     if (s == null) return const SizedBox.shrink();
@@ -225,8 +245,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(children: [
-                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primaryTeal)),
-                Text(label, style: const TextStyle(color: textSecondary, fontSize: 12)),
+                Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primaryTeal)),
+                Text(label, style: TextStyle(color: textSecondary, fontSize: 12)),
               ]),
             ),
           ),
@@ -242,7 +262,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     final s = _settings;
     return Card(
       child: ListTile(
-        leading: const Icon(Icons.no_food_outlined, color: primaryTeal),
+        leading: Icon(Icons.no_food_outlined, color: primaryTeal),
         title: const Text('Restrizioni alimentari'),
         subtitle: Text(
           s == null
@@ -255,20 +275,88 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
+  Future<void> _addSuggestion() async {
+    final added = await SuggestToPatientSheet.show(
+      context,
+      patientId: widget.patient.patientId,
+      patientName: widget.patient.displayName,
+    );
+    if (added == true && mounted) _load();
+  }
+
+  Future<void> _removeSuggestion(PatientSuggestion s) async {
+    try {
+      await SuggestionService.remove(s.id);
+      if (mounted) _load();
+    } on AppError catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  /// Le ricette pubblicate valgono per tutti i pazienti; qui stanno le
+  /// indicazioni per questa persona, con la nota del perché.
+  Widget _buildSuggestions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text('Consigli per ${widget.patient.displayName}',
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            TextButton.icon(
+              onPressed: _addSuggestion,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Aggiungi'),
+            ),
+          ],
+        ),
+        if (_suggestions.isEmpty)
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.lightbulb_outline, color: textSecondary),
+              title: const Text('Nessun consiglio mirato'),
+              subtitle: Text(
+                'Una ricetta o un alimento scelti per lui, oltre a quelli che pubblichi per tutti.',
+                style: TextStyle(color: textSecondary, fontSize: 12),
+              ),
+            ),
+          )
+        else
+          for (final s in _suggestions)
+            Card(
+              child: ListTile(
+                leading: Icon(s.isRecipe ? Icons.menu_book_outlined : Icons.restaurant, color: primaryTeal),
+                title: Text(s.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  [
+                    '${s.kcal.round()} kcal per ${s.portionLabel}',
+                    if (s.note != null) s.note!,
+                  ].join(' · '),
+                  style: TextStyle(color: textSecondary, fontSize: 12),
+                ),
+                trailing: IconButton(
+                  tooltip: 'Togli il consiglio',
+                  icon: Icon(Icons.close, color: textSecondary, size: 20),
+                  onPressed: () => _removeSuggestion(s),
+                ),
+              ),
+            ),
+      ],
+    );
+  }
+
   Widget _buildPlan() {
     final plan = _plan;
     if (plan == null) {
-      return const Card(
+      return Card(
         child: ListTile(
           leading: Icon(Icons.assignment_late_outlined, color: textSecondary),
           title: Text('Nessun piano attivo'),
         ),
       );
     }
-    double n(dynamic v) => (v as num?)?.toDouble() ?? 0;
-    final allDays = plan.targets.where((t) => t['day_of_week'] == null).toList();
-    final rows = allDays.isNotEmpty ? allDays : plan.targets;
-    final kcal = rows.fold(0.0, (s, t) => s + n(t['protein_g']) * 4 + n(t['carbs_g']) * 4 + n(t['fat_g']) * 9);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -276,23 +364,51 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              const Icon(Icons.assignment_outlined, color: primaryTeal),
+              Icon(Icons.assignment_outlined, color: primaryTeal),
               const SizedBox(width: 8),
               Expanded(child: Text(plan.name, style: const TextStyle(fontWeight: FontWeight.bold))),
-              Text('${kcal.round()} kcal/giorno', style: const TextStyle(color: textSecondary)),
+              Text('${plan.kcal.round()} kcal/giorno', style: TextStyle(color: textSecondary)),
             ]),
             if (plan.validFrom != null)
               Text('Dal ${plan.validFrom!.day}/${plan.validFrom!.month}/${plan.validFrom!.year}',
-                  style: const TextStyle(color: textSecondary, fontSize: 12)),
-            const SizedBox(height: 8),
-            for (final t in rows)
+                  style: TextStyle(color: textSecondary, fontSize: 12)),
+            if (plan.isSelfManaged)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '${MealSlot.fromValue(t['meal_slot'] as String?).label}: '
-                  'P ${n(t['protein_g']).round()} · C ${n(t['carbs_g']).round()} · G ${n(t['fat_g']).round()} g',
+                child: Text('Impostato dal paziente prima di collegarsi a te',
+                    style: TextStyle(color: textSecondary, fontSize: 12, fontStyle: FontStyle.italic)),
+              ),
+            const SizedBox(height: 8),
+            for (final slot in PlanService.planSlots)
+              if (plan.targets[slot] != null && !plan.targets[slot]!.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${slot.label}: P ${plan.targets[slot]!.proteinG.round()} · '
+                    'C ${plan.targets[slot]!.carbsG.round()} · '
+                    'G ${plan.targets[slot]!.fatG.round()} g · '
+                    '${plan.targets[slot]!.kcal.round()} kcal',
+                  ),
+                ),
+            if (plan.notes != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tealSoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Come seguirlo',
+                        style: TextStyle(color: primaryTeal, fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text(plan.notes!, style: TextStyle(color: textPrimary, fontSize: 13)),
+                  ],
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -301,10 +417,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
   List<Widget> _buildDiary() {
     if (_diaryError != null) {
-      return [Text('Diario non disponibile: $_diaryError', style: const TextStyle(color: textSecondary))];
+      return [Text('Diario non disponibile: $_diaryError', style: TextStyle(color: textSecondary))];
     }
     if (_diary.isEmpty && !_loading) {
-      return const [Text('Nessuna registrazione nel periodo.', style: TextStyle(color: textSecondary))];
+      return [Text('Nessuna registrazione nel periodo.', style: TextStyle(color: textSecondary))];
     }
     return [
       for (final meal in _diary)
@@ -323,7 +439,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   ),
                   IconButton(
                     tooltip: 'Commenta questo pasto',
-                    icon: const Icon(Icons.add_comment_outlined, color: primaryTeal),
+                    icon: Icon(Icons.add_comment_outlined, color: primaryTeal),
                     onPressed: () => _addComment(date: meal.date, slot: meal.slot),
                   ),
                 ]),
@@ -340,10 +456,10 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(children: [
-                      const Icon(Icons.chat_bubble_outline, size: 16, color: primaryTeal),
+                      Icon(Icons.chat_bubble_outline, size: 16, color: primaryTeal),
                       const SizedBox(width: 8),
                       Expanded(child: Text(c['body']?.toString() ?? '')),
-                      if (c['read_at'] != null) const Icon(Icons.done_all, size: 16, color: primaryTeal),
+                      if (c['read_at'] != null) Icon(Icons.done_all, size: 16, color: primaryTeal),
                     ]),
                   ),
               ],
@@ -354,90 +470,3 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
   }
 }
 
-/// Form per un nuovo piano macro: target per pasto, uguali tutti i giorni.
-class _MacroPlanForm extends StatefulWidget {
-  final PatientOverview patient;
-
-  const _MacroPlanForm({required this.patient});
-
-  @override
-  State<_MacroPlanForm> createState() => _MacroPlanFormState();
-}
-
-class _MacroPlanFormState extends State<_MacroPlanForm> {
-  static const _slots = [MealSlot.breakfast, MealSlot.morningSnack, MealSlot.lunch, MealSlot.afternoonSnack, MealSlot.dinner];
-
-  final _name = TextEditingController(text: 'Piano');
-  final Map<MealSlot, List<TextEditingController>> _fields = {
-    for (final s in _slots) s: [TextEditingController(), TextEditingController(), TextEditingController()],
-  };
-  bool _saving = false;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    for (final list in _fields.values) {
-      for (final c in list) {
-        c.dispose();
-      }
-    }
-    super.dispose();
-  }
-
-  double _val(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
-
-  Future<void> _save() async {
-    final targets = <MealSlot, ({double protein, double carbs, double fat})>{};
-    _fields.forEach((slot, c) {
-      final p = _val(c[0]), carbs = _val(c[1]), f = _val(c[2]);
-      if (p + carbs + f > 0) targets[slot] = (protein: p, carbs: carbs, fat: f);
-    });
-    if (targets.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Inserisci almeno un target.')));
-      return;
-    }
-    setState(() => _saving = true);
-    try {
-      await NutritionistService.startMacroPlan(
-        patientId: widget.patient.patientId,
-        name: _name.text.trim().isEmpty ? 'Piano' : _name.text.trim(),
-        validFrom: DateTime.now(),
-        targetsBySlot: targets,
-      );
-      if (mounted) Navigator.pop(context, true);
-    } on AppError catch (e) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    InputDecoration dec(String label) => InputDecoration(labelText: label, isDense: true);
-    return Scaffold(
-      appBar: AppBar(title: Text('Piano per ${widget.patient.displayName}')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nome piano')),
-          const SizedBox(height: 8),
-          const Text('Grammi per pasto, validi tutti i giorni da oggi. Il piano attuale viene chiuso.'),
-          const SizedBox(height: 16),
-          for (final slot in _slots) ...[
-            Text(slot.label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            Row(children: [
-              Expanded(child: TextField(controller: _fields[slot]![0], keyboardType: TextInputType.number, decoration: dec('Proteine'))),
-              const SizedBox(width: 8),
-              Expanded(child: TextField(controller: _fields[slot]![1], keyboardType: TextInputType.number, decoration: dec('Carboidrati'))),
-              const SizedBox(width: 8),
-              Expanded(child: TextField(controller: _fields[slot]![2], keyboardType: TextInputType.number, decoration: dec('Grassi'))),
-            ]),
-            const SizedBox(height: 16),
-          ],
-          FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Salvataggio...' : 'Crea piano')),
-        ],
-      ),
-    );
-  }
-}

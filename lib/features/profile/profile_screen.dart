@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
 import '../../core/account_service.dart';
+import '../../core/plan_service.dart';
+import '../admin/verifications_screen.dart';
+import '../plan/macro_plan_editor_screen.dart';
 import '../../core/app_error.dart';
 import '../../core/chat_service.dart';
 import '../../core/community_models.dart';
@@ -42,6 +46,8 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
   NutritionistDetails? _details;
   ProfessionalVerification? _verification;
   int _unread = 0;
+  MacroPlan? _myPlan;
+  bool _canSelfManage = false;
   bool _loading = true;
   String? _error;
 
@@ -74,6 +80,13 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
         final links = await AccountService.getMyLinks();
         if (links.isNotEmpty) {
           nutritionistName = (await AccountService.getLinkedNutritionist(links.first.nutritionistId)).name;
+        }
+        // Autogestione: solo senza professionista collegato (migration 023)
+        try {
+          _canSelfManage = await PlanService.canSelfManage();
+          _myPlan = await PlanService.getCurrentPlan();
+        } on AppError {
+          _canSelfManage = links.isEmpty;
         }
       }
       var unread = 0;
@@ -121,6 +134,7 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final profile = _profile;
     return Scaffold(
       backgroundColor: ProfilePalette.bg,
@@ -128,17 +142,18 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
         backgroundColor: ProfilePalette.bg,
         elevation: 0,
         automaticallyImplyLeading: !widget.embedded && !widget.showBottomNav,
-        title: const Text('Profilo', style: TextStyle(color: ProfilePalette.textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
+        title: Text('Profilo', style: TextStyle(color: ProfilePalette.textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
+        actions: [ThemeToggleButton(), const SizedBox(width: 4)],
       ),
       bottomNavigationBar: widget.showBottomNav && !widget.embedded
-          ? const CustomBottomNav(currentIndex: PatientTab.profile, isDarkMode: false)
+          ? CustomBottomNav(currentIndex: PatientTab.profile)
           : null,
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: ProfilePalette.teal))
+          ? Center(child: CircularProgressIndicator(color: ProfilePalette.teal))
           : (_error != null || profile == null)
               ? Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(_error ?? 'Profilo non disponibile', style: const TextStyle(color: ProfilePalette.textSecondary)),
+                    Text(_error ?? 'Profilo non disponibile', style: TextStyle(color: ProfilePalette.textSecondary)),
                     TextButton(onPressed: _load, child: const Text('Riprova')),
                   ]),
                 )
@@ -192,12 +207,12 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
         CircleAvatar(
           radius: 32,
           backgroundColor: Colors.white.withValues(alpha: 0.2),
-          child: Text(name[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+          child: Text(name[0].toUpperCase(), style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(name, style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
             if (AccountService.email != null)
               Text(AccountService.email!, style: TextStyle(color: Colors.white.withValues(alpha: 0.85))),
             const SizedBox(height: 8),
@@ -220,17 +235,52 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
 
   Widget _pill(String text, IconData icon) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(color: cardColor.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(20)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 14, color: Colors.white),
           const SizedBox(width: 4),
-          Text(text, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(text, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
         ]),
       );
 
+  /// Autogestione: chi non ha un professionista collegato si da' da solo
+  /// gli obiettivi. Con un professionista il piano e' suo, e l'app lo dice.
+  Future<void> _openMyTargets() async {
+    if (!_canSelfManage) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gli obiettivi li imposta ${_nutritionistName ?? 'il tuo nutrizionista'}. '
+              'Scrivigli in chat se vanno cambiati.'),
+        ),
+      );
+      return;
+    }
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => MacroPlanEditorScreen(current: _myPlan)),
+    );
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Obiettivi salvati. Li trovi nel diario.')),
+      );
+      _load();
+    }
+  }
+
   List<Widget> _patientMenu(Profile profile) {
+    final targetsSubtitle = _myPlan == null
+        ? (_canSelfManage ? 'Non impostati · fallo tu in un minuto' : 'Li imposta il tuo nutrizionista')
+        : '${_myPlan!.kcal.round()} kcal · P ${_myPlan!.proteinG.round()} · '
+            'C ${_myPlan!.carbsG.round()} · G ${_myPlan!.fatG.round()} g'
+            '${_myPlan!.isSelfManaged ? '' : ' · dal tuo nutrizionista'}';
     return [
       MenuGroup(title: 'Il mio percorso', items: [
+        MenuItem(
+          icon: Icons.track_changes_outlined,
+          title: _canSelfManage ? 'I miei obiettivi' : 'Obiettivi giornalieri',
+          subtitle: targetsSubtitle,
+          onTap: _openMyTargets,
+        ),
         MenuItem(
           icon: Icons.health_and_safety_outlined,
           title: 'Il mio nutrizionista',
@@ -283,10 +333,10 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
         Container(
           margin: const EdgeInsets.only(bottom: 8),
           child: Card(
-            color: const Color(0xFFFFF7E6),
+            color: warningBg,
             elevation: 0,
             child: ListTile(
-              leading: const Icon(Icons.info_outline, color: Colors.orange),
+              leading: Icon(Icons.info_outline, color: warningFg),
               title: const Text('Completa la verifica professionale'),
               subtitle: const Text('Serve per comparire nella vetrina, pubblicare ricette e verificare quelle dei pazienti.'),
               onTap: () => _open(const VerificationScreen()),
@@ -329,6 +379,16 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
           onTap: () => _open(const VerificationScreen()),
         ),
       ]),
+      // Un amministratore e' un professionista con un gruppo in piu'.
+      if (profile.isAdmin)
+        MenuGroup(title: 'Amministrazione', items: [
+          MenuItem(
+            icon: Icons.admin_panel_settings_outlined,
+            title: 'Verifiche professionali',
+            subtitle: 'Approva o rifiuta le richieste di abilitazione',
+            onTap: () => _open(const AdminVerificationsScreen()),
+          ),
+        ]),
     ];
   }
 }

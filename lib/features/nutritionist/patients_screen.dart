@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/chat_service.dart';
 import '../../core/models.dart';
@@ -25,10 +27,6 @@ class PatientsScreen extends StatefulWidget {
 }
 
 class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
 
   List<PatientOverview> _patients = [];
   int _toReview = 0;
@@ -78,6 +76,7 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     final verified = widget.profile.professionalVerified;
     return Scaffold(
       backgroundColor: bgColor,
@@ -87,22 +86,22 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('I tuoi pazienti', style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
+            Text('I tuoi pazienti', style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
             Text(
               widget.profile.displayName.isEmpty ? 'Portale nutrizionista' : widget.profile.displayName,
-              style: const TextStyle(color: textSecondary, fontSize: 14),
+              style: TextStyle(color: textSecondary, fontSize: 14),
             ),
           ],
         ),
         actions: [
           IconButton(
             tooltip: 'Notifiche',
-            icon: const Icon(Icons.notifications_outlined, color: textPrimary),
+            icon: Icon(Icons.notifications_outlined, color: textPrimary),
             onPressed: () => _push(const NotificationsScreen()),
           ),
           IconButton(
             tooltip: 'Invita un paziente',
-            icon: const Icon(Icons.person_add_alt, color: textPrimary),
+            icon: Icon(Icons.person_add_alt, color: textPrimary),
             onPressed: () => _push(const InvitationsScreen()),
           ),
         ],
@@ -122,9 +121,9 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
           children: [
             if (!verified)
               Card(
-                color: const Color(0xFFFFF7E6),
+                color: warningBg,
                 child: ListTile(
-                  leading: const Icon(Icons.info_outline, color: Colors.orange),
+                  leading: Icon(Icons.info_outline, color: warningFg),
                   title: const Text('Profilo non ancora verificato'),
                   subtitle: const Text('Richiedi la verifica per comparire in vetrina, pubblicare ricette e creare alimenti.'),
                   onTap: () => _push(const VerificationScreen()),
@@ -132,7 +131,7 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
               ),
             if (!_loading && _error == null) _buildStats(),
             if (_loading)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 80),
                 child: Center(child: CircularProgressIndicator(color: primaryTeal)),
               )
@@ -140,12 +139,12 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
               Padding(
                 padding: const EdgeInsets.only(top: 80),
                 child: Column(children: [
-                  Text(_error!, style: const TextStyle(color: textSecondary)),
-                  TextButton(onPressed: _load, child: const Text('Riprova', style: TextStyle(color: primaryTeal))),
+                  Text(_error!, style: TextStyle(color: textSecondary)),
+                  TextButton(onPressed: _load, child: Text('Riprova', style: TextStyle(color: primaryTeal))),
                 ]),
               )
             else if (_patients.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(top: 80),
                 child: Text(
                   'Nessun paziente collegato.\nGenera un codice invito con l\'icona in alto, oppure rendi pubblico '
@@ -167,9 +166,9 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: attention ? Colors.orange.shade200 : Colors.grey.shade200),
+        border: Border.all(color: attention ? warningFg : borderColor),
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -177,21 +176,21 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
           backgroundColor: primaryTeal.withValues(alpha: 0.12),
           child: Text(
             p.displayName.isEmpty ? '?' : p.displayName[0].toUpperCase(),
-            style: const TextStyle(color: primaryTeal, fontWeight: FontWeight.bold),
+            style: TextStyle(color: primaryTeal, fontWeight: FontWeight.bold),
           ),
         ),
-        title: Text(p.displayName, style: const TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
+        title: Text(p.displayName, style: TextStyle(fontWeight: FontWeight.bold, color: textPrimary)),
         subtitle: Text(
           p.sharesAdherence
               ? 'Ultimi 7 giorni: ${p.daysLoggedLast7} registrati · ${p.daysOnTargetLast7} in target'
               : 'Il paziente non condivide l\'aderenza',
-          style: const TextStyle(color: textSecondary),
+          style: TextStyle(color: textSecondary),
         ),
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (attention) const Icon(Icons.priority_high, color: Colors.orange),
+          if (attention) Icon(Icons.priority_high, color: warningFg),
           IconButton(
             tooltip: 'Scrivi',
-            icon: const Icon(Icons.chat_bubble_outline, color: primaryTeal),
+            icon: Icon(Icons.chat_bubble_outline, color: primaryTeal),
             onPressed: () => _openChat(p),
           ),
         ]),
@@ -219,15 +218,15 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: borderColor),
               ),
               child: Column(children: [
                 Icon(icon, color: primaryTeal),
                 const SizedBox(height: 4),
-                Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary)),
-                Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: textSecondary)),
+                Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary)),
+                Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: textSecondary)),
               ]),
             ),
           ),

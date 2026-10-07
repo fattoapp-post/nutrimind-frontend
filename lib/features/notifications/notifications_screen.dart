@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme.dart';
+
 import '../../core/app_error.dart';
 import '../../core/models.dart';
 import '../../core/notification_service.dart';
@@ -13,7 +15,6 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  static const Color primaryTeal = Color(0xFF127B6D);
 
   List<AppNotification> _items = [];
   bool _loading = true;
@@ -77,16 +78,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watchTheme();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifiche'),
         actions: [
           if (_items.isNotEmpty)
-            TextButton(onPressed: _markAllRead, child: const Text('Segna tutte lette', style: TextStyle(color: primaryTeal))),
+            TextButton(onPressed: _markAllRead, child: Text('Segna tutte lette', style: TextStyle(color: primaryTeal))),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: primaryTeal))
+          ? Center(child: CircularProgressIndicator(color: primaryTeal))
           : _error != null
               ? Center(
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
