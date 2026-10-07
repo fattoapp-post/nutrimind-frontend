@@ -302,13 +302,66 @@ class PatientSettings {
 class NutritionistDetails {
   final String? studioName;
   final String? bio;
+  // Profilo pubblico (migration 016)
+  final String profession; // nutritionist | dietitian | personal_trainer
+  final String? headline;
+  final List<String> specialties;
+  final String? city;
+  final bool onlineConsultations;
+  final bool acceptingPatients;
+  final bool isPublic;
+  final String? instagramUrl;
+  final String? tiktokUrl;
+  final String? youtubeUrl;
+  final String? websiteUrl;
 
-  const NutritionistDetails({this.studioName, this.bio});
+  const NutritionistDetails({
+    this.studioName,
+    this.bio,
+    this.profession = 'nutritionist',
+    this.headline,
+    this.specialties = const [],
+    this.city,
+    this.onlineConsultations = true,
+    this.acceptingPatients = true,
+    this.isPublic = false,
+    this.instagramUrl,
+    this.tiktokUrl,
+    this.youtubeUrl,
+    this.websiteUrl,
+  });
 
   factory NutritionistDetails.fromJson(Map<String, dynamic> json) => NutritionistDetails(
         studioName: json['studio_name'] as String?,
         bio: json['bio'] as String?,
+        profession: (json['profession'] as String?) ?? 'nutritionist',
+        headline: json['headline'] as String?,
+        specialties: List<String>.from((json['specialties'] as List?) ?? const []),
+        city: json['city'] as String?,
+        onlineConsultations: (json['online_consultations'] as bool?) ?? true,
+        acceptingPatients: (json['accepting_patients'] as bool?) ?? true,
+        isPublic: (json['is_public'] as bool?) ?? false,
+        instagramUrl: json['instagram_url'] as String?,
+        tiktokUrl: json['tiktok_url'] as String?,
+        youtubeUrl: json['youtube_url'] as String?,
+        websiteUrl: json['website_url'] as String?,
       );
+
+  Map<String, dynamic> toJson() => {
+        'studio_name': studioName,
+        'bio': bio,
+        'profession': profession,
+        'headline': headline,
+        'specialties': specialties,
+        'city': city,
+        'online_consultations': onlineConsultations,
+        'accepting_patients': acceptingPatients,
+        'is_public': isPublic,
+        'instagram_url': instagramUrl,
+        'tiktok_url': tiktokUrl,
+        'youtube_url': youtubeUrl,
+        'website_url': websiteUrl,
+      };
 }
 
 /// Riga di `public.professional_verifications`.

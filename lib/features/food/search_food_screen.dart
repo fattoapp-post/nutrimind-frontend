@@ -35,7 +35,9 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
   String? _error;
   List<Food> _results = [];
 
-  // Ricerca remota su Open Food Facts: solo su richiesta esplicita
+  // Database esteso (Edge search-off): parte da solo, una volta per ricerca,
+  // quando il catalogo locale dà pochi risultati
+  static const _extendedThreshold = 5;
   List<OffProduct>? _offResults;
   bool _offLoading = false;
   String? _offError;
@@ -115,6 +117,9 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
       final results = await FoodService.searchFoods(query);
       if (!mounted || query != _query) return;
       setState(() => _results = results);
+      if (results.length < _extendedThreshold && query.length >= 3 && _offResults == null) {
+        _searchOff();
+      }
     } on AppError catch (e) {
       if (!mounted || query != _query) return;
       setState(() => _error = e.message);
@@ -216,34 +221,43 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     );
   }
 
+  /// Risultati del database esteso, mostrati come semplici "altri prodotti":
+  /// all'utente non interessa da quale fonte arrivano.
   List<Widget> _buildOffSection() {
-    if (_offResults == null) {
-      return [
-        TextButton.icon(
-          onPressed: _offLoading ? null : _searchOff,
-          icon: _offLoading
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))
-              : const Icon(Icons.travel_explore, color: primaryTeal),
-          label: const Text('Non trovi il prodotto? Cerca su Open Food Facts', style: TextStyle(color: primaryTeal)),
+    if (_offLoading) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))),
         ),
-        if (_offError != null)
-          Text(_offError!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent)),
       ];
     }
+    if (_offResults == null) {
+      return [
+        if (_offError != null) ...[
+          Text(_offError!, textAlign: TextAlign.center, style: const TextStyle(color: textSecondary)),
+          TextButton(onPressed: _searchOff, child: const Text('Riprova', style: TextStyle(color: primaryTeal))),
+        ] else if (_query.length >= 3)
+          TextButton.icon(
+            onPressed: _searchOff,
+            icon: const Icon(Icons.manage_search, color: primaryTeal),
+            label: const Text('Mostra altri prodotti', style: TextStyle(color: primaryTeal)),
+          ),
+      ];
+    }
+    if (_offResults!.isEmpty) return const [];
     return [
       const Padding(
         padding: EdgeInsets.only(top: 8, bottom: 8),
-        child: Text('Da Open Food Facts', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
+        child: Text('Altri prodotti', style: TextStyle(color: textSecondary, fontWeight: FontWeight.bold)),
       ),
-      if (_offResults!.isEmpty)
-        const Text('Nessun prodotto trovato.', style: TextStyle(color: textSecondary)),
       for (final p in _offResults!) ...[
         _tile(
           title: p.name,
           subtitle: [if (p.brand?.isNotEmpty ?? false) p.brand!, '${p.kcal.round()} kcal / 100 g'].join(' · '),
           trailing: _importingBarcode == p.barcode
               ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: primaryTeal))
-              : const Icon(Icons.download_outlined, color: textSecondary),
+              : const Icon(Icons.chevron_right, color: textSecondary),
           onTap: _importingBarcode == null ? () => _importOff(p) : null,
         ),
         const SizedBox(height: 8),

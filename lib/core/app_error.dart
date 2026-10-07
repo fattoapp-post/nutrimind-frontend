@@ -33,7 +33,8 @@ class AppError implements Exception {
     }
     if (error is PostgrestException) {
       final status = _statusForPostgrest(error);
-      return AppError(messageForStatus(status), status: status);
+      final known = _knownMessages[error.message.trim()];
+      return AppError(known ?? messageForStatus(status), status: status);
     }
     if (error is FunctionException) {
       return AppError(messageForStatus(error.status), status: error.status);
@@ -41,6 +42,8 @@ class AppError implements Exception {
     return AppError(messageForStatus(null));
   }
 
+  /// Codici Postgres/PostgREST -> stato HTTP equivalente. Solo i codici
+  /// noti: un SQLSTATE come 23514 non è uno stato HTTP.
   static int? _statusForPostgrest(PostgrestException e) {
     switch (e.code) {
       case '42501':
@@ -48,12 +51,46 @@ class AppError implements Exception {
       case 'P0002':
       case 'PGRST116':
         return 404;
+      case '28000':
       case 'PGRST301':
       case 'PGRST302':
+      case 'PGRST303':
         return 401;
+      case '54000':
+        return 429;
+      case '22023':
+      case '22008':
+      case '23514':
+      case '23505':
+      case '55000':
+        return 400;
     }
-    return int.tryParse(e.code ?? '');
+    final code = int.tryParse(e.code ?? '');
+    return (code != null && code >= 400 && code < 600) ? code : null;
   }
+
+  /// Eccezioni sollevate dalle RPC (raise exception '...') -> messaggio utente.
+  static const _knownMessages = {
+    'forbidden': 'Operazione non autorizzata.',
+    'not_found': 'Elemento non trovato.',
+    'not_authenticated': 'Sessione scaduta. Accedi di nuovo.',
+    'rate_limited': 'Stai inviando troppi messaggi. Riprova tra poco.',
+    'nutritionist_not_verified': 'Serve la verifica professionale per questa operazione.',
+    'meal_has_no_items': 'Aggiungi almeno un ingrediente alla ricetta.',
+    'unusable_foods_in_meal': 'La ricetta contiene alimenti non più disponibili: sostituiscili.',
+    'unverified_foods_in_meal': 'La ricetta contiene alimenti non ancora verificati.',
+    'rejection_notes_required': 'Scrivi al paziente cosa modificare.',
+    'invalid_state': 'La ricetta è già stata inviata o pubblicata.',
+    'invalid_servings': 'Numero di porzioni non valido.',
+    'invalid_visibility': 'Visibilità non valida.',
+    'cannot_review_own_meal': 'Non puoi verificare una tua ricetta.',
+    'empty_message': 'Il messaggio è vuoto.',
+    'not_accepting_patients': 'Al momento questo professionista non accetta nuovi pazienti.',
+    'too_many_open_invitations': 'Hai troppi inviti ancora aperti.',
+    'food_not_available': 'Alimento non più disponibile.',
+    'food_not_found': 'Alimento non trovato.',
+    'invalid_entry_date': 'Data non valida.',
+  };
 
   static String _authMessage(AuthException e) {
     final msg = e.message.toLowerCase();

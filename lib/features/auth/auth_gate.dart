@@ -6,7 +6,7 @@ import '../../core/app_error.dart';
 import '../../core/models.dart';
 import '../../core/push_service.dart';
 import '../../core/supabase.dart';
-import '../nutritionist/patients_screen.dart';
+import '../shell/nutritionist_shell.dart';
 import '../shell/patient_shell.dart';
 import 'login_screen.dart';
 
@@ -68,7 +68,7 @@ class _RoleRouterState extends State<_RoleRouter> {
           );
         }
         final profile = snapshot.data!;
-        return profile.isNutritionist ? PatientsScreen(profile: profile) : const PatientShell();
+        return profile.isNutritionist ? NutritionistShell(profile: profile) : const PatientShell();
       },
     );
   }

@@ -98,10 +98,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     SegmentedButton<String>(
                       segments: const [
                         ButtonSegment(value: 'patient', label: Text('Paziente')),
-                        ButtonSegment(value: 'nutritionist', label: Text('Nutrizionista')),
+                        ButtonSegment(value: 'nutritionist', label: Text('Professionista')),
                       ],
                       selected: {_role},
                       onSelectionChanged: (s) => setState(() => _role = s.first),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      _role == 'patient'
+                          ? 'Tieni il diario, ricevi piani e ricette, trova il tuo nutrizionista.'
+                          : 'Nutrizionisti, dietisti e personal trainer: segui i pazienti e pubblica ricette.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 16),
                   ],

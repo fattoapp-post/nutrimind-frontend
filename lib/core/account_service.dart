@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'app_error.dart';
 import 'models.dart';
 import 'push_service.dart';
@@ -64,12 +66,30 @@ class AccountService {
     });
   }
 
-  static Future<void> updateNutritionistDetails({String? studioName, String? bio}) {
-    return withSessionRetry(() => supabase.from('nutritionist_details').upsert({
-          'user_id': _uid,
-          'studio_name': studioName,
-          'bio': bio,
-        }, onConflict: 'user_id'));
+  static Future<void> updateNutritionistDetails(NutritionistDetails details) {
+    return withSessionRetry(() => supabase.from('nutritionist_details').upsert(
+          {'user_id': _uid, ...details.toJson()},
+          onConflict: 'user_id',
+        ));
+  }
+
+  /// Email dell'account (sta in auth.users, non in profiles).
+  static String? get email => supabase.auth.currentUser?.email;
+
+  static Future<void> changePassword(String newPassword) =>
+      withSessionRetry(() => supabase.auth.updateUser(UserAttributes(password: newPassword)));
+
+  /// Nome e dettagli del nutrizionista collegato (RLS: solo con link attivo).
+  static Future<({String name, NutritionistDetails? details})> getLinkedNutritionist(String nutritionistId) {
+    return withSessionRetry(() async {
+      final profile = await supabase.from('profiles').select('display_name').eq('id', nutritionistId).maybeSingle();
+      final details = await supabase.from('nutritionist_details').select().eq('user_id', nutritionistId).maybeSingle();
+      final name = (profile?['display_name'] as String?)?.trim();
+      return (
+        name: (name == null || name.isEmpty) ? 'Il tuo nutrizionista' : name,
+        details: details == null ? null : NutritionistDetails.fromJson(details),
+      );
+    });
   }
 
   static Future<ProfessionalVerification?> getLatestVerification() {

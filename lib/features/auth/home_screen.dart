@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/app_error.dart';
+import '../../core/chat_service.dart';
 import '../../core/notification_service.dart';
 import '../../core/push_service.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
@@ -12,7 +13,9 @@ import '../../core/models.dart';
 import '../food/food_detail_screen.dart';
 import '../food/scanner_screen.dart';
 import '../food/search_food_screen.dart';
+import '../chat/conversations_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../recipes/recipes_picker_screen.dart';
 import '../nutritionist/create_food_screen.dart';
 import '../shell/patient_shell.dart';
 
@@ -55,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
   List<DiaryEntry> _diaryEntries = [];
   List<NutritionistComment> _comments = [];
   int _unreadNotifications = 0;
+  int _unreadMessages = 0;
   RealtimeChannel? _notificationsChannel;
   bool _loading = true;
   String? _error;
@@ -91,7 +95,15 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
   Future<void> _loadNotifications() async {
     try {
       final items = await NotificationService.getUnread();
-      if (mounted) setState(() => _unreadNotifications = items.length);
+      // I messaggi hanno il loro badge: non si contano due volte
+      final others = items.where((n) => n.type != 'new_message').length;
+      final messages = await ChatService.unreadCount();
+      if (mounted) {
+        setState(() {
+          _unreadNotifications = others;
+          _unreadMessages = messages;
+        });
+      }
     } on AppError {
       // il badge non è essenziale: resta il valore precedente
     }
@@ -187,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       if (!mounted) return;
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       if (food == null) {
-        // Non è né in catalogo né su Open Food Facts: proponi di inserirlo
+        // Non è né in catalogo né nel database esteso: proponi di inserirlo
         final create = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -298,6 +310,19 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
     }
   }
 
+  Future<void> _openRecipes(MealSlot slot) async {
+    final added = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => RecipesPickerScreen(slot: slot, date: _selectedDate)),
+    );
+    if (added == true) _loadDiaryData();
+  }
+
+  Future<void> _openChats() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const ConversationsScreen()));
+    _loadNotifications();
+  }
+
   Future<void> _openNotifications() async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
     _loadNotifications();
@@ -342,6 +367,11 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
               ),
               const SizedBox(height: 16),
 
+              _buildAddOption(Icons.menu_book_outlined, 'Ricette', 'Del tuo nutrizionista e della community', () {
+                Navigator.pop(context);
+                _openRecipes(slot);
+              }),
+              const SizedBox(height: 12),
               _buildAddOption(Icons.search, 'Cerca', 'Catalogo alimenti', () {
                 Navigator.pop(context);
                 _openSearch(slot);
@@ -500,21 +530,27 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
             Text(_getFormattedDate(_selectedDate), style: const TextStyle(color: textSecondary, fontSize: 14)),
           ],
         ),
-        Container(
-          decoration: BoxDecoration(color: cardColor, shape: BoxShape.circle, border: Border.all(color: borderColor)),
-          child: IconButton(
-            tooltip: 'Notifiche',
-            onPressed: _openNotifications,
-            icon: Badge(
-              isLabelVisible: _unreadNotifications > 0,
-              label: Text('$_unreadNotifications'),
-              child: const Icon(Icons.notifications_outlined, color: Colors.white),
-            ),
-          ),
-        )
+        Row(children: [
+          _roundIcon(Icons.chat_bubble_outline, 'Messaggi', _unreadMessages, _openChats),
+          const SizedBox(width: 8),
+          _roundIcon(Icons.notifications_outlined, 'Notifiche', _unreadNotifications, _openNotifications),
+        ]),
       ],
     );
   }
+
+  Widget _roundIcon(IconData icon, String tooltip, int badge, VoidCallback onPressed) => Container(
+        decoration: BoxDecoration(color: cardColor, shape: BoxShape.circle, border: Border.all(color: borderColor)),
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: onPressed,
+          icon: Badge(
+            isLabelVisible: badge > 0,
+            label: Text('$badge'),
+            child: Icon(icon, color: Colors.white),
+          ),
+        ),
+      );
 
   Widget _buildDynamicCalendar() {
     const shortDays = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];

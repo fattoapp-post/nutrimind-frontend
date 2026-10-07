@@ -1,207 +1,104 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../core/account_service.dart';
 import '../../core/app_error.dart';
+import '../../core/chat_service.dart';
+import '../../core/community_models.dart';
 import '../../core/models.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
 import '../auth/auth_gate.dart';
+import '../chat/conversations_screen.dart';
+import '../directory/find_nutritionist_screen.dart';
+import '../notifications/notifications_screen.dart';
+import '../nutritionist/plan_templates_screen.dart';
+import '../recipes/my_recipes_screen.dart';
+import '../shell/patient_shell.dart';
+import 'account_details_screen.dart';
+import 'invitations_screen.dart';
+import 'my_nutritionist_screen.dart';
+import 'preferences_screen.dart';
+import 'profile_widgets.dart';
+import 'public_profile_editor_screen.dart';
+import 'verification_screen.dart';
 
-/// Profilo dell'utente. Per i pazienti: impostazioni, collegamento al
-/// nutrizionista e consensi. Per i nutrizionisti: dettagli studio,
-/// verifica professionale e codici invito.
+/// Hub del profilo: scheda personale in alto e voci raggruppate, diverse per
+/// paziente e professionista. Ogni voce apre una pagina dedicata.
 class ProfileScreen extends StatefulWidget {
-  /// Mostra la barra di navigazione del paziente.
+  /// Paziente: barra di navigazione della shell.
   final bool showBottomNav;
 
-  const ProfileScreen({super.key, this.showBottomNav = true});
+  /// Professionista: scheda dell'app nutrizionista (nessun tasto indietro).
+  final bool embedded;
+
+  const ProfileScreen({super.key, this.showBottomNav = true, this.embedded = false});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
-  static const Color bgColor = Color(0xFFFAFAFA);
-  static const Color primaryTeal = Color(0xFF127B6D);
-  static const Color textPrimary = Color(0xFF1F2937);
-  static const Color textSecondary = Color(0xFF6B7280);
-
-  final _name = TextEditingController();
-  final _studio = TextEditingController();
-  final _bio = TextEditingController();
-  final _licenseBody = TextEditingController();
-  final _licenseNumber = TextEditingController();
-  final _inviteCode = TextEditingController();
-
+class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
   Profile? _profile;
-  PatientSettings? _settings;
+  String? _nutritionistName;
+  NutritionistDetails? _details;
   ProfessionalVerification? _verification;
-  List<PatientLink> _links = [];
-  Invitation? _invitation;
-  Set<ConsentScope> _redeemScopes = {ConsentScope.adherence};
-
+  int _unread = 0;
   bool _loading = true;
-  bool _busy = false;
   String? _error;
+
+  @override
+  int get tabIndex => PatientTab.profile;
+
+  @override
+  void onTabVisible() => _load();
 
   @override
   void initState() {
     super.initState();
-    // I pulsanti si abilitano solo con i campi compilati
-    for (final c in [_name, _licenseBody, _licenseNumber, _inviteCode]) {
-      c.addListener(_onFieldChanged);
-    }
     _load();
-  }
-
-  void _onFieldChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    for (final c in [_name, _studio, _bio, _licenseBody, _licenseNumber, _inviteCode]) {
-      c.dispose();
-    }
-    super.dispose();
   }
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      _loading = _profile == null;
       _error = null;
     });
     try {
       final profile = await AccountService.getProfile();
-      _profile = profile;
-      _name.text = profile.displayName;
+      String? nutritionistName;
+      NutritionistDetails? details;
+      ProfessionalVerification? verification;
       if (profile.isNutritionist) {
-        final details = await AccountService.getNutritionistDetails();
-        _studio.text = details?.studioName ?? '';
-        _bio.text = details?.bio ?? '';
-        _verification = await AccountService.getLatestVerification();
+        details = await AccountService.getNutritionistDetails();
+        verification = await AccountService.getLatestVerification();
       } else {
-        _settings = await AccountService.getPatientSettings();
+        final links = await AccountService.getMyLinks();
+        if (links.isNotEmpty) {
+          nutritionistName = (await AccountService.getLinkedNutritionist(links.first.nutritionistId)).name;
+        }
       }
-      _links = await AccountService.getMyLinks();
+      var unread = 0;
+      try {
+        unread = await ChatService.unreadCount();
+      } on AppError {
+        // la chat è secondaria: il profilo si mostra comunque
+      }
+      if (!mounted) return;
+      setState(() {
+        _profile = profile;
+        _nutritionistName = nutritionistName;
+        _details = details;
+        _verification = verification;
+        _unread = unread;
+      });
     } on AppError catch (e) {
-      _error = e.message;
+      if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  /// Esegue un'azione mostrando l'esito; i campi restano compilati se fallisce.
-  Future<void> _run(Future<void> Function() action, {String? success, bool reload = false}) async {
-    setState(() => _busy = true);
-    try {
-      await action();
-      if (!mounted) return;
-      if (success != null) _snack(success);
-      if (reload) await _load();
-    } on AppError catch (e) {
-      if (mounted) _snack(e.message);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  void _snack(String message) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        title: const Text('Profilo', style: TextStyle(color: textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            tooltip: 'Esci',
-            icon: const Icon(Icons.logout, color: textPrimary),
-            onPressed: _busy ? null : _confirmSignOut,
-          ),
-        ],
-      ),
-      bottomNavigationBar: widget.showBottomNav ? const CustomBottomNav(currentIndex: 3, isDarkMode: false) : null,
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: primaryTeal))
-          : _error != null
-              ? Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(_error!, style: const TextStyle(color: textSecondary)),
-                    TextButton(onPressed: _load, child: const Text('Riprova', style: TextStyle(color: primaryTeal))),
-                  ]),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      if (_busy) const LinearProgressIndicator(color: primaryTeal),
-                      _buildAccountCard(),
-                      const SizedBox(height: 16),
-                      if (_profile!.isNutritionist) ...[
-                        _buildNutritionistCard(),
-                        const SizedBox(height: 16),
-                        _buildVerificationCard(),
-                        const SizedBox(height: 16),
-                        _buildInvitationCard(),
-                      ] else ...[
-                        _buildSettingsCard(),
-                        const SizedBox(height: 16),
-                        _buildPatientLinksCard(),
-                      ],
-                    ],
-                  ),
-                ),
-    );
-  }
-
-  // --- Account ------------------------------------------------------------
-
-  Widget _buildAccountCard() {
-    final profile = _profile!;
-    return _card(
-      title: 'Account',
-      children: [
-        Row(children: [
-          Chip(label: Text(profile.isNutritionist ? 'Nutrizionista' : 'Paziente')),
-          const SizedBox(width: 8),
-          if (profile.isNutritionist)
-            Chip(
-              avatar: Icon(profile.professionalVerified ? Icons.verified : Icons.hourglass_empty, size: 16, color: primaryTeal),
-              label: Text(profile.professionalVerified ? 'Verificato' : 'Non verificato'),
-            ),
-        ]),
-        const SizedBox(height: 8),
-        TextField(controller: _name, decoration: const InputDecoration(labelText: 'Nome visualizzato'), maxLength: 80),
-        DropdownButtonFormField<String>(
-          initialValue: profile.locale == 'en' ? 'en' : 'it',
-          decoration: const InputDecoration(labelText: 'Lingua'),
-          items: const [
-            DropdownMenuItem(value: 'it', child: Text('Italiano')),
-            DropdownMenuItem(value: 'en', child: Text('English')),
-          ],
-          onChanged: _busy
-              ? null
-              : (v) => _run(() => AccountService.updateProfile(locale: v), success: 'Lingua aggiornata.', reload: true),
-        ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(
-            onPressed: _busy || _name.text.trim().isEmpty
-                ? null
-                : () => _run(() => AccountService.updateProfile(displayName: _name.text.trim()), success: 'Profilo aggiornato.'),
-            child: const Text('Salva'),
-          ),
-        ),
-      ],
-    );
-  }
+  void _open(Widget screen) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen)).then((_) => _load());
 
   Future<void> _confirmSignOut() async {
     final ok = await showDialog<bool>(
@@ -216,313 +113,222 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (ok != true) return;
     await AccountService.signOut();
-    // La bottom nav usa pushReplacement, quindi AuthGate potrebbe non essere
-    // più nello stack: si riparte da lì, che mostrerà il login.
+    // La shell potrebbe non avere AuthGate sotto di sé: si riparte da lì
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const AuthGate()), (_) => false);
     }
   }
 
-  // --- Paziente -----------------------------------------------------------
-
-  Widget _buildSettingsCard() {
-    final s = _settings;
-    if (s == null) {
-      return _card(title: 'Preferenze', children: const [Text('Impostazioni non disponibili.')]);
-    }
-    return _card(
-      title: 'Preferenze',
-      children: [
-        const Text('Restrizioni alimentari', style: TextStyle(color: textSecondary)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final e in dietaryRestrictionLabels.entries)
-              FilterChip(
-                label: Text(e.value),
-                selected: s.dietaryRestrictions.contains(e.key),
-                selectedColor: primaryTeal.withValues(alpha: 0.15),
-                onSelected: _busy
-                    ? null
-                    : (on) => setState(() => _settings = PatientSettings(
-                          dietaryRestrictions: on
-                              ? [...s.dietaryRestrictions, e.key]
-                              : s.dietaryRestrictions.where((r) => r != e.key).toList(),
-                          timezone: s.timezone,
-                          remindersEnabled: s.remindersEnabled,
-                          reminderAfterHours: s.reminderAfterHours,
-                        )),
-              ),
-          ],
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Promemoria registrazione pasti'),
-          value: s.remindersEnabled,
-          activeThumbColor: primaryTeal,
-          onChanged: _busy
-              ? null
-              : (v) => setState(() => _settings = PatientSettings(
-                    dietaryRestrictions: s.dietaryRestrictions,
-                    timezone: s.timezone,
-                    remindersEnabled: v,
-                    reminderAfterHours: s.reminderAfterHours,
-                  )),
-        ),
-        if (s.remindersEnabled)
-          DropdownButtonFormField<int>(
-            initialValue: const [12, 24, 48, 72].contains(s.reminderAfterHours) ? s.reminderAfterHours : 24,
-            decoration: const InputDecoration(labelText: 'Avvisami dopo'),
-            items: const [
-              DropdownMenuItem(value: 12, child: Text('12 ore senza registrazioni')),
-              DropdownMenuItem(value: 24, child: Text('24 ore senza registrazioni')),
-              DropdownMenuItem(value: 48, child: Text('48 ore senza registrazioni')),
-              DropdownMenuItem(value: 72, child: Text('72 ore senza registrazioni')),
-            ],
-            onChanged: (v) => setState(() => _settings = PatientSettings(
-                  dietaryRestrictions: s.dietaryRestrictions,
-                  timezone: s.timezone,
-                  remindersEnabled: s.remindersEnabled,
-                  reminderAfterHours: v ?? 24,
-                )),
-          ),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(
-            onPressed: _busy
-                ? null
-                : () => _run(() => AccountService.updatePatientSettings(_settings!), success: 'Preferenze salvate.'),
-            child: const Text('Salva preferenze'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPatientLinksCard() {
-    return _card(
-      title: 'Il tuo nutrizionista',
-      children: [
-        if (_links.isEmpty) ...[
-          const Text('Inserisci il codice invito ricevuto dal tuo nutrizionista.', style: TextStyle(color: textSecondary)),
-          TextField(
-            controller: _inviteCode,
-            textCapitalization: TextCapitalization.characters,
-            decoration: const InputDecoration(labelText: 'Codice invito'),
-          ),
-          const SizedBox(height: 12),
-          const Text('Cosa condividi', style: TextStyle(color: textSecondary)),
-          for (final scope in ConsentScope.values)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(scope.label),
-              value: _redeemScopes.contains(scope),
-              activeColor: primaryTeal,
-              onChanged: (on) => setState(() {
-                _redeemScopes = {..._redeemScopes};
-                on == true ? _redeemScopes.add(scope) : _redeemScopes.remove(scope);
-              }),
-            ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: _busy || _inviteCode.text.trim().isEmpty
-                  ? null
-                  : () => _run(
-                        () async {
-                          await AccountService.redeemInvitation(_inviteCode.text, _redeemScopes);
-                          _inviteCode.clear();
-                        },
-                        success: 'Collegamento creato.',
-                        reload: true,
-                      ),
-              child: const Text('Collegati'),
-            ),
-          ),
-        ],
-        for (final link in _links) ...[
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.health_and_safety_outlined, color: primaryTeal),
-            title: const Text('Nutrizionista collegato'),
-            subtitle: link.createdAt == null ? null : Text('Dal ${_formatDate(link.createdAt!)}'),
-            trailing: TextButton(
-              onPressed: _busy ? null : () => _confirmRevokeLink(link),
-              child: const Text('Scollega', style: TextStyle(color: Colors.red)),
-            ),
-          ),
-          const Text('Consensi (puoi revocarli in qualsiasi momento)', style: TextStyle(color: textSecondary)),
-          for (final scope in ConsentScope.values)
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(scope.label),
-              value: link.activeScopes.contains(scope),
-              activeThumbColor: primaryTeal,
-              onChanged: _busy
-                  ? null
-                  : (on) => _run(
-                        () => on ? AccountService.grantConsent(link.id, scope) : AccountService.revokeConsent(link.id, scope),
-                        success: on ? 'Consenso concesso.' : 'Consenso revocato.',
-                        reload: true,
-                      ),
-            ),
-        ],
-      ],
-    );
-  }
-
-  Future<void> _confirmRevokeLink(PatientLink link) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Interrompere il collegamento?'),
-        content: const Text('Il nutrizionista non potrà più vedere i tuoi dati.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annulla')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Scollega')),
-        ],
+  @override
+  Widget build(BuildContext context) {
+    final profile = _profile;
+    return Scaffold(
+      backgroundColor: ProfilePalette.bg,
+      appBar: AppBar(
+        backgroundColor: ProfilePalette.bg,
+        elevation: 0,
+        automaticallyImplyLeading: !widget.embedded && !widget.showBottomNav,
+        title: const Text('Profilo', style: TextStyle(color: ProfilePalette.textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
       ),
-    );
-    if (ok == true) {
-      await _run(() => AccountService.revokeLink(link.id), success: 'Collegamento interrotto.', reload: true);
-    }
-  }
-
-  // --- Nutrizionista --------------------------------------------------------
-
-  Widget _buildNutritionistCard() {
-    return _card(
-      title: 'Studio',
-      children: [
-        TextField(controller: _studio, decoration: const InputDecoration(labelText: 'Nome studio')),
-        TextField(controller: _bio, decoration: const InputDecoration(labelText: 'Bio'), maxLines: 3),
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton(
-            onPressed: _busy
-                ? null
-                : () => _run(
-                      () => AccountService.updateNutritionistDetails(
-                        studioName: _studio.text.trim().isEmpty ? null : _studio.text.trim(),
-                        bio: _bio.text.trim().isEmpty ? null : _bio.text.trim(),
-                      ),
-                      success: 'Dettagli salvati.',
-                    ),
-            child: const Text('Salva'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildVerificationCard() {
-    final v = _verification;
-    final canRequest = v == null || v.status == 'rejected';
-    return _card(
-      title: 'Verifica professionale',
-      children: [
-        if (v != null)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              v.status == 'verified' ? Icons.verified : (v.status == 'rejected' ? Icons.cancel_outlined : Icons.hourglass_top),
-              color: v.status == 'rejected' ? Colors.red : primaryTeal,
-            ),
-            title: Text(v.statusLabel),
-            subtitle: Text('${v.licenseBody} · n. ${v.licenseNumber}'),
-          ),
-        if (canRequest) ...[
-          const Text(
-            'Senza verifica non puoi creare alimenti né porzioni nel catalogo.',
-            style: TextStyle(color: textSecondary),
-          ),
-          TextField(controller: _licenseBody, decoration: const InputDecoration(labelText: 'Ordine / albo (es. Ordine dei Biologi del Lazio)')),
-          TextField(controller: _licenseNumber, decoration: const InputDecoration(labelText: 'Numero iscrizione')),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: _busy || _licenseBody.text.trim().isEmpty || _licenseNumber.text.trim().isEmpty
-                  ? null
-                  : () => _run(
-                        () => AccountService.requestVerification(
-                          licenseBody: _licenseBody.text.trim(),
-                          licenseNumber: _licenseNumber.text.trim(),
+      bottomNavigationBar: widget.showBottomNav && !widget.embedded
+          ? const CustomBottomNav(currentIndex: PatientTab.profile, isDarkMode: false)
+          : null,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: ProfilePalette.teal))
+          : (_error != null || profile == null)
+              ? Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text(_error ?? 'Profilo non disponibile', style: const TextStyle(color: ProfilePalette.textSecondary)),
+                    TextButton(onPressed: _load, child: const Text('Riprova')),
+                  ]),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _buildHeader(profile),
+                      const SizedBox(height: 8),
+                      ...(profile.isNutritionist ? _nutritionistMenu(profile) : _patientMenu(profile)),
+                      MenuGroup(title: 'Account', items: [
+                        MenuItem(
+                          icon: Icons.person_outline,
+                          title: 'Dati personali',
+                          subtitle: 'Nome, lingua, password',
+                          onTap: () => _open(AccountDetailsScreen(profile: profile)),
                         ),
-                        success: 'Richiesta inviata.',
-                        reload: true,
-                      ),
-              child: const Text('Richiedi verifica'),
-            ),
-          ),
-        ],
-      ],
+                        MenuItem(
+                          icon: Icons.notifications_outlined,
+                          title: 'Notifiche',
+                          onTap: () => _open(const NotificationsScreen()),
+                        ),
+                        MenuItem(
+                          icon: Icons.logout,
+                          title: 'Esci',
+                          color: Colors.red,
+                          trailing: const SizedBox.shrink(),
+                          onTap: _confirmSignOut,
+                        ),
+                      ]),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
     );
   }
 
-  Widget _buildInvitationCard() {
-    final inv = _invitation;
-    return _card(
-      title: 'Invita un paziente',
-      children: [
-        const Text('Genera un codice e condividilo con il paziente. Vale 7 giorni.', style: TextStyle(color: textSecondary)),
-        if (inv != null)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: SelectableText(inv.code, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2)),
-            subtitle: inv.expiresAt == null ? null : Text('Scade il ${_formatDate(inv.expiresAt!)}'),
-            trailing: IconButton(
-              icon: const Icon(Icons.copy),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: inv.code));
-                _snack('Codice copiato.');
-              },
+  Widget _buildHeader(Profile profile) {
+    final name = profile.displayName.isEmpty ? 'Utente' : profile.displayName;
+    final roleLabel = profile.isNutritionist
+        ? (professionLabels[_details?.profession] ?? 'Nutrizionista')
+        : 'Paziente';
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF127B6D), Color(0xFF0E5F55)]),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(children: [
+        CircleAvatar(
+          radius: 32,
+          backgroundColor: Colors.white.withValues(alpha: 0.2),
+          child: Text(name[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            if (AccountService.email != null)
+              Text(AccountService.email!, style: TextStyle(color: Colors.white.withValues(alpha: 0.85))),
+            const SizedBox(height: 8),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              _pill(roleLabel, Icons.badge_outlined),
+              if (profile.isNutritionist)
+                _pill(profile.professionalVerified ? 'Verificato' : 'Da verificare',
+                    profile.professionalVerified ? Icons.verified : Icons.hourglass_empty),
+            ]),
+          ]),
+        ),
+        IconButton(
+          tooltip: 'Modifica',
+          icon: const Icon(Icons.edit_outlined, color: Colors.white),
+          onPressed: () => _open(AccountDetailsScreen(profile: profile)),
+        ),
+      ]),
+    );
+  }
+
+  Widget _pill(String text, IconData icon) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(20)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(text, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+        ]),
+      );
+
+  List<Widget> _patientMenu(Profile profile) {
+    return [
+      MenuGroup(title: 'Il mio percorso', items: [
+        MenuItem(
+          icon: Icons.health_and_safety_outlined,
+          title: 'Il mio nutrizionista',
+          subtitle: _nutritionistName ?? 'Non sei collegato · trovane uno',
+          onTap: () => _open(const MyNutritionistScreen()),
+        ),
+        MenuItem(
+          icon: Icons.chat_bubble_outline,
+          title: 'Messaggi',
+          badge: _unread,
+          onTap: () => _open(const ConversationsScreen()),
+        ),
+        MenuItem(
+          icon: Icons.travel_explore,
+          title: 'Trova un nutrizionista',
+          subtitle: 'Ricette, piani di base e contatto diretto',
+          onTap: () => _open(const FindNutritionistScreen()),
+        ),
+        MenuItem(
+          icon: Icons.menu_book_outlined,
+          title: 'Le mie ricette',
+          subtitle: 'Creale e falle verificare dal nutrizionista',
+          onTap: () => _open(const MyRecipesScreen()),
+        ),
+      ]),
+      MenuGroup(title: 'Preferenze', items: [
+        MenuItem(
+          icon: Icons.no_food_outlined,
+          title: 'Alimentazione e promemoria',
+          subtitle: 'Restrizioni, scelte alimentari, avvisi',
+          onTap: () => _open(const PreferencesScreen()),
+        ),
+        MenuItem(
+          icon: Icons.privacy_tip_outlined,
+          title: 'Privacy e consensi',
+          subtitle: 'Cosa condividi con il nutrizionista',
+          onTap: () => _open(const MyNutritionistScreen()),
+        ),
+      ]),
+    ];
+  }
+
+  List<Widget> _nutritionistMenu(Profile profile) {
+    final v = _verification;
+    final verificationSubtitle = profile.professionalVerified
+        ? 'Verificato'
+        : (v == null ? 'Non richiesta · necessaria per la vetrina' : v.statusLabel);
+    return [
+      if (!profile.professionalVerified)
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Card(
+            color: const Color(0xFFFFF7E6),
+            elevation: 0,
+            child: ListTile(
+              leading: const Icon(Icons.info_outline, color: Colors.orange),
+              title: const Text('Completa la verifica professionale'),
+              subtitle: const Text('Serve per comparire nella vetrina, pubblicare ricette e verificare quelle dei pazienti.'),
+              onTap: () => _open(const VerificationScreen()),
             ),
-          ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: _busy
-                ? null
-                : () => _run(() async {
-                      final created = await AccountService.createInvitation();
-                      if (mounted) setState(() => _invitation = created);
-                    }),
-            icon: const Icon(Icons.add),
-            label: const Text('Genera codice'),
           ),
         ),
-      ],
-    );
-  }
-
-  // --- Helper ---------------------------------------------------------------
-
-  Widget _card({required String title, required List<Widget> children}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textPrimary)),
-          const SizedBox(height: 8),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  static String _formatDate(DateTime d) {
-    final l = d.toLocal();
-    return '${l.day.toString().padLeft(2, '0')}/${l.month.toString().padLeft(2, '0')}/${l.year}';
+      MenuGroup(title: 'La tua vetrina', items: [
+        MenuItem(
+          icon: Icons.storefront_outlined,
+          title: 'Profilo pubblico',
+          subtitle: (_details?.isPublic ?? false) && profile.professionalVerified
+              ? 'Visibile in "Trova un nutrizionista"'
+              : 'Non visibile ai pazienti',
+          onTap: () => _open(PublicProfileEditorScreen(profile: profile)),
+        ),
+        MenuItem(
+          icon: Icons.assignment_outlined,
+          title: 'Piani alimentari di base',
+          subtitle: 'Proposte che attirano nuovi pazienti',
+          onTap: () => _open(const PlanTemplatesScreen()),
+        ),
+        MenuItem(
+          icon: Icons.menu_book_outlined,
+          title: 'Ricette',
+          subtitle: 'Le tue ricette e quelle da verificare',
+          onTap: () => _open(const MyRecipesScreen(showReviewQueue: true)),
+        ),
+      ]),
+      MenuGroup(title: 'Pazienti', items: [
+        MenuItem(
+          icon: Icons.person_add_alt,
+          title: 'Invita pazienti',
+          subtitle: 'Genera un codice invito',
+          onTap: () => _open(const InvitationsScreen()),
+        ),
+        MenuItem(
+          icon: Icons.verified_user_outlined,
+          title: 'Verifica professionale',
+          subtitle: verificationSubtitle,
+          onTap: () => _open(const VerificationScreen()),
+        ),
+      ]),
+    ];
   }
 }
