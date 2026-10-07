@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../core/account_service.dart';
 import '../../core/plan_service.dart';
+import '../admin/admin_home_screen.dart';
+import '../admin/foods_to_review_screen.dart';
 import '../admin/verifications_screen.dart';
 import '../plan/macro_plan_editor_screen.dart';
 import '../../core/app_error.dart';
@@ -384,9 +386,21 @@ class _ProfileScreenState extends State<ProfileScreen> with ReloadOnTabVisible {
         MenuGroup(title: 'Amministrazione', items: [
           MenuItem(
             icon: Icons.admin_panel_settings_outlined,
-            title: 'Verifiche professionali',
-            subtitle: 'Approva o rifiuta le richieste di abilitazione',
+            title: 'Quadro generale',
+            subtitle: 'Cosa aspetta una decisione, e i numeri del progetto',
+            onTap: () => _open(const AdminHomeScreen()),
+          ),
+          MenuItem(
+            icon: Icons.verified_user_outlined,
+            title: 'Abilitazioni professionali',
+            subtitle: 'Approva o rifiuta le richieste',
             onTap: () => _open(const AdminVerificationsScreen()),
+          ),
+          MenuItem(
+            icon: Icons.restaurant,
+            title: 'Alimenti da verificare',
+            subtitle: 'Quelli creati da pazienti e professionisti',
+            onTap: () => _open(const FoodsToReviewScreen()),
           ),
         ]),
     ];

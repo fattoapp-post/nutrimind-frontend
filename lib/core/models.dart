@@ -201,6 +201,28 @@ class DiaryEntry {
       );
 }
 
+
+/// Obiettivi di un singolo pasto, in grammi. Li scrive il piano macro
+/// (`macro_plan_targets`) e li legge il diario, pasto per pasto.
+class MealTarget {
+  final double proteinG;
+  final double carbsG;
+  final double fatG;
+
+  const MealTarget({this.proteinG = 0, this.carbsG = 0, this.fatG = 0});
+
+  /// Atwater, come fa il database: 4 kcal/g per proteine e carboidrati,
+  /// 9 per i grassi.
+  double get kcal => proteinG * 4 + carbsG * 4 + fatG * 9;
+  bool get isEmpty => proteinG + carbsG + fatG <= 0;
+
+  MealTarget copyWith({double? proteinG, double? carbsG, double? fatG}) => MealTarget(
+        proteinG: proteinG ?? this.proteinG,
+        carbsG: carbsG ?? this.carbsG,
+        fatG: fatG ?? this.fatG,
+      );
+}
+
 /// Obiettivi giornalieri derivati dal piano macro corrente.
 class DailyTargets {
   final double kcal;
@@ -209,8 +231,11 @@ class DailyTargets {
   final double fatG;
   final bool fromPlan;
   final String? planName;
-  /// kcal obiettivo per pasto (solo pasti presenti nel piano).
-  final Map<MealSlot, double> kcalBySlot;
+  /// Obiettivi per pasto, solo per i pasti presenti nel piano. Il
+  /// diario li mostra accanto a quanto si e' mangiato: prima si vedevano
+  /// solo le calorie, e i macro per pasto restavano invisibili benche'
+  /// il piano li contenesse.
+  final Map<MealSlot, MealTarget> targetsBySlot;
 
   const DailyTargets({
     required this.kcal,
@@ -219,11 +244,14 @@ class DailyTargets {
     required this.fatG,
     required this.fromPlan,
     this.planName,
-    this.kcalBySlot = const {},
+    this.targetsBySlot = const {},
   });
 
   /// Valori di fallback quando il paziente non ha un piano attivo.
   static const fallback = DailyTargets(kcal: 2000, proteinG: 140, carbsG: 220, fatG: 65, fromPlan: false);
+
+  /// Obiettivo di un pasto, null se il piano non lo prevede.
+  MealTarget? targetFor(MealSlot slot) => targetsBySlot[slot];
 }
 
 String isoDate(DateTime d) =>

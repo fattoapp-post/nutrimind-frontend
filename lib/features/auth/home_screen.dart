@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
   String? _planName;
   MacroPlan? _plan;
   bool _canSelfManage = false;
-  Map<MealSlot, double> _kcalBySlot = const {};
+  Map<MealSlot, MealTarget> _targetsBySlot = const {};
 
   List<DiaryEntry> _diaryEntries = [];
   List<NutritionistComment> _comments = [];
@@ -171,7 +171,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
         maxG = targets.fatG.round();
         _hasPlan = targets.fromPlan;
         _planName = targets.planName;
-        _kcalBySlot = targets.kcalBySlot;
+        _targetsBySlot = targets.targetsBySlot;
       });
     } on AppError catch (e) {
       if (mounted && date == _selectedDate) setState(() => _error = e.message);
@@ -766,6 +766,22 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
     );
   }
 
+  /// "12 g" senza piano, "12 / 35 g" quando il pasto ha un obiettivo.
+  String _macroLabel(int? eaten, double? target) =>
+      target == null || target <= 0 ? '${eaten ?? 0}g' : '${eaten ?? 0}/${target.round()}g';
+
+  /// Entro il 15% dell'obiettivo si considera centrato: una tolleranza
+  /// serve, perche' nessuno pesa al grammo.
+  bool _mealOnTarget(int eaten, double target) =>
+      target > 0 && (eaten - target).abs() <= target * 0.15;
+
+  String _mealHint(int eaten, double target) {
+    if (target <= 0) return '';
+    if (_mealOnTarget(eaten, target)) return 'in linea';
+    final diff = (eaten - target).round();
+    return diff > 0 ? '+$diff kcal' : '$diff kcal';
+  }
+
   Widget _buildMealCard({
     required MealSlot slot,
     required String time,
@@ -775,6 +791,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
     bool hasDot = false,
     required List<DiaryEntry> addedItems,
   }) {
+    final target = _targetsBySlot[slot];
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: borderColor)),
@@ -808,16 +825,21 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                       Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       if (isEmpty) ...[
                         const SizedBox(height: 4),
-                        Text('Nessun alimento · Tocca + per aggiungere', style: TextStyle(color: textSecondary, fontSize: 12)),
+                        Text(
+                          target == null
+                              ? 'Nessun alimento · Tocca + per aggiungere'
+                              : 'Obiettivo: P ${target.proteinG.round()} · C ${target.carbsG.round()} · G ${target.fatG.round()} g',
+                          style: TextStyle(color: textSecondary, fontSize: 12),
+                        ),
                       ] else ...[
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 6,
                           runSpacing: 4,
                           children: [
-                            _buildMacroPill('P', '${p}g', colorP),
-                            _buildMacroPill('C', '${c}g', colorC),
-                            _buildMacroPill('G', '${g}g', colorG),
+                            _buildMacroPill('P', _macroLabel(p, target?.proteinG), colorP),
+                            _buildMacroPill('C', _macroLabel(c, target?.carbsG), colorC),
+                            _buildMacroPill('G', _macroLabel(g, target?.fatG), colorG),
                           ],
                         ),
                       ]
@@ -830,11 +852,18 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                     if (isEmpty)
                       Icon(Icons.add_circle_outline, color: textSecondary)
                     else
-                      Text('$kcal kcal', style: TextStyle(color: textSecondary, fontSize: 14)),
-                    if (_kcalBySlot[slot] != null)
                       Text(
-                        'obiettivo ${_kcalBySlot[slot]!.round()}',
-                        style: TextStyle(color: textSecondary, fontSize: 11),
+                        target == null ? '$kcal kcal' : '$kcal / ${target.kcal.round()} kcal',
+                        style: TextStyle(color: textSecondary, fontSize: 14),
+                      ),
+                    if (target != null && !isEmpty)
+                      Text(
+                        _mealHint(kcal ?? 0, target.kcal),
+                        style: TextStyle(
+                          color: _mealOnTarget(kcal ?? 0, target.kcal) ? primaryTeal : textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                   ],
                 ),

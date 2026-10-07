@@ -244,25 +244,36 @@ class FoodService {
       if (dayTargets.isEmpty) dayTargets = targets.where((t) => t['day_of_week'] == null).toList();
       if (dayTargets.isEmpty) return DailyTargets.fallback;
 
-      double n(dynamic v) => (v as num?)?.toDouble() ?? 0;
-      double kcalOf(Map<String, dynamic> t) => t['kcal_estimated'] != null
-          ? n(t['kcal_estimated'])
-          : n(t['protein_g']) * 4 + n(t['carbs_g']) * 4 + n(t['fat_g']) * 9;
+      double n(dynamic v) => switch (v) {
+            num x => x.toDouble(),
+            String s => double.tryParse(s) ?? 0,
+            _ => 0,
+          };
       double sum(String key) => dayTargets.fold(0.0, (s, t) => s + n(t[key]));
 
-      final bySlot = <MealSlot, double>{};
+      // Un pasto può avere più righe (per esempio uno spuntino diviso):
+      // si sommano, così l'obiettivo del pasto è uno solo.
+      final bySlot = <MealSlot, MealTarget>{};
       for (final t in dayTargets) {
         final slot = MealSlot.fromValue(t['meal_slot'] as String?);
-        bySlot[slot] = (bySlot[slot] ?? 0) + kcalOf(t);
+        final before = bySlot[slot] ?? const MealTarget();
+        bySlot[slot] = MealTarget(
+          proteinG: before.proteinG + n(t['protein_g']),
+          carbsG: before.carbsG + n(t['carbs_g']),
+          fatG: before.fatG + n(t['fat_g']),
+        );
       }
       return DailyTargets(
-        kcal: dayTargets.fold(0.0, (s, t) => s + kcalOf(t)),
+        // Le kcal si ricavano dai macro: `kcal_estimated` è lo stesso
+        // calcolo fatto dal database, e sommare i due porterebbe a
+        // numeri diversi fra giornata e singoli pasti.
+        kcal: bySlot.values.fold(0.0, (s, t) => s + t.kcal),
         proteinG: sum('protein_g'),
         carbsG: sum('carbs_g'),
         fatG: sum('fat_g'),
         fromPlan: true,
         planName: plans.first['name'] as String?,
-        kcalBySlot: bySlot,
+        targetsBySlot: bySlot,
       );
     });
   }

@@ -197,4 +197,19 @@ class AccountService {
           'p_scope': scope.name,
         }));
   }
+  /// Tutti i propri dati, come li restituisce `export_my_data`: profilo,
+  /// diario, piani, preferiti, ricette, commenti, consensi, registro.
+  /// La funzione annota l'esportazione in `audit_log`.
+  static Future<Map<String, dynamic>> exportMyData() {
+    return withSessionRetry(() async {
+      final data = await supabase.rpc('export_my_data');
+      return Map<String, dynamic>.from(data as Map);
+    });
+  }
+
+  /// Cancella l'utenza e, a cascata, tutto ciò che la riguarda.
+  /// Il database rifiuta se chi chiede è l'unico amministratore.
+  static Future<void> deleteMyAccount() {
+    return withSessionRetry(() => supabase.rpc('delete_my_account'));
+  }
 }

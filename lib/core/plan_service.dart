@@ -2,26 +2,6 @@ import 'app_error.dart';
 import 'models.dart';
 import 'supabase.dart';
 
-/// Obiettivi per un singolo pasto, in grammi.
-class MealTarget {
-  final double proteinG;
-  final double carbsG;
-  final double fatG;
-
-  const MealTarget({this.proteinG = 0, this.carbsG = 0, this.fatG = 0});
-
-  /// Atwater, come fa il database: 4 kcal/g per proteine e carboidrati,
-  /// 9 per i grassi.
-  double get kcal => proteinG * 4 + carbsG * 4 + fatG * 9;
-  bool get isEmpty => proteinG + carbsG + fatG <= 0;
-
-  MealTarget copyWith({double? proteinG, double? carbsG, double? fatG}) => MealTarget(
-        proteinG: proteinG ?? this.proteinG,
-        carbsG: carbsG ?? this.carbsG,
-        fatG: fatG ?? this.fatG,
-      );
-}
-
 /// Un piano macro con i suoi obiettivi per pasto e le istruzioni.
 class MacroPlan {
   final String id;
