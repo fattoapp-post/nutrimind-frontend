@@ -10,14 +10,45 @@ Le chiavi non sono nel codice: vengono passate a build-time.
 2. Inserisci la **anon/publishable key** del progetto DEV
    (Dashboard Supabase > Project Settings > API).
    **Mai** la secret/service_role key: l'app si rifiuta di partire se la riceve.
-3. Avvia:
+Per PROD crea `env/prod.json` con URL e chiave di `ynnlfxgehbtlneiknrfr`.
+
+## Avviare l'app
+
+**Indicare sempre il dispositivo.** Senza `-d`, Flutter elenca anche
+Windows ed Edge e chiede quale usare; scegliendo Windows la build
+fallisce, perché serve il carico "Desktop development with C++" di
+Visual Studio e il Developer Mode attivo per i symlink. Oggi il web è
+l'unico bersaglio che compila.
 
 ```bash
 flutter pub get
-flutter run --dart-define-from-file=env/dev.json
+flutter run -d chrome --dart-define-from-file=env/dev.json
 ```
 
-Per PROD crea `env/prod.json` con URL e chiave di `ynnlfxgehbtlneiknrfr`.
+Apre da sé una finestra di Chrome. Due cose da sapere:
+
+- **è lento ad avviarsi**, e il tempo sta tutto in *"Waiting for
+  connection from debug service on Chrome"*: circa 100 secondi dopo un
+  `pub get`, circa 35 a cache calda. Sta compilando l'app in
+  JavaScript, non è bloccato;
+- **non stampa l'indirizzo dell'app.** Gli unici URL a terminale sono
+  quelli del debug service e di DevTools: aprirli non porta all'app, e
+  chiudendo la finestra aperta da Flutter non resta nessun indirizzo a
+  cui tornare.
+
+Se si vuole invece un indirizzo stabile, da riaprire quando si vuole e
+nel browser che si preferisce:
+
+```bash
+flutter run -d web-server --web-port=8080 --dart-define-from-file=env/dev.json
+```
+
+Serve l'app su **`http://localhost:8080`**. Attenzione: il dev server si
+lega al solo loopback IPv6, quindi `http://127.0.0.1:8080` **non
+risponde** e non spiega il perché. Per avere IPv4 aggiungere
+`--web-hostname=127.0.0.1`; per aprire l'app dal telefono sulla stessa
+rete `--web-hostname=0.0.0.0`, tenendo presente che così è raggiungibile
+da tutta la rete locale.
 
 ## Funzionalità
 
