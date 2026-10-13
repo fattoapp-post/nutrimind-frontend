@@ -8,6 +8,7 @@ import '../../core/models.dart';
 import 'food_detail_screen.dart';
 import 'search_food_screen.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
+import '../../core/widgets/food_thumb.dart';
 import '../../core/feedback.dart';
 import '../shell/patient_shell.dart';
 
@@ -271,11 +272,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start, 
           children: [
-            Container(
-              width: 60, height: 60,
-              decoration: BoxDecoration(color: borderColor, borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.restaurant, color: Colors.grey),
-            ),
+            FoodThumb(url: food.listImage, size: 60),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

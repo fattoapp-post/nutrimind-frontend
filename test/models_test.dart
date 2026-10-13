@@ -60,6 +60,38 @@ void main() {
       expect(Food.fromJson(row()).subtitle, 'Barilla');
     });
 
+    // Tre chiavi diverse per la stessa cosa: `image_url` e
+    // `image_thumb_url` sono le colonne di `foods` (migration 028),
+    // `image_front_url` è il nome che usava soltanto la risposta di
+    // `search-off` e che una funzione pubblicata prima della 028 manda
+    // ancora. Negli elenchi vince sempre la piccola.
+    test('negli elenchi usa l\'immagine piccola', () {
+      final food = Food.fromJson({
+        ...row(),
+        'image_url': 'https://esempio/grande.jpg',
+        'image_thumb_url': 'https://esempio/piccola.jpg',
+      });
+      expect(food.listImage, 'https://esempio/piccola.jpg');
+      expect(food.imageUrl, 'https://esempio/grande.jpg');
+    });
+
+    test('senza immagine piccola negli elenchi ripiega sulla grande', () {
+      final food = Food.fromJson({...row(), 'image_url': 'https://esempio/grande.jpg'});
+      expect(food.listImage, 'https://esempio/grande.jpg');
+    });
+
+    test('accetta ancora image_front_url dalle funzioni non aggiornate', () {
+      final food = Food.fromJson({...row(), 'image_front_url': 'https://esempio/off.jpg'});
+      expect(food.listImage, 'https://esempio/off.jpg');
+      expect(food.imageUrl, 'https://esempio/off.jpg');
+    });
+
+    test('senza nessuna immagine non inventa un indirizzo', () {
+      final food = Food.fromJson({...row(), 'image_url': '', 'image_thumb_url': '   '});
+      expect(food.listImage, isNull);
+      expect(food.imageUrl, isNull);
+    });
+
     test('il sottotitolo non ripete la marca uguale al nome', () {
       expect(Food.fromJson(row(name: 'Nutella', brand: 'Nutella')).subtitle, isEmpty);
       expect(Food.fromJson(row(name: 'Nutella', brand: ' nutella ')).subtitle, isEmpty);

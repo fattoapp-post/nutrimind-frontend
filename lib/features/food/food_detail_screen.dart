@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
+import '../../core/widgets/food_thumb.dart';
 import '../../core/feedback.dart';
 
 /// Dettaglio alimento. Restituisce `true` se è stato aggiunto al diario.
@@ -124,20 +125,28 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // La confezione: serve a capire di essere sul prodotto
+                // giusto, che con nomi come "Yogurt Greco 0%" non è
+                // affatto ovvio.
+                FoodThumb(url: food.imageUrl ?? food.imageThumbUrl, size: 76),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(food.name, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textPrimary)),
+                      Text(
+                        food.name,
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textPrimary),
+                      ),
                       if (food.subtitle.isNotEmpty)
-                        Text(food.subtitle, style: TextStyle(fontSize: 16, color: textSecondary)),
+                        Text(food.subtitle, style: TextStyle(fontSize: 15, color: textSecondary)),
+                      const SizedBox(height: 6),
+                      _buildVerificationBadge(isVerified),
                     ],
                   ),
                 ),
-                _buildVerificationBadge(isVerified),
               ],
             ),
             const SizedBox(height: 24),

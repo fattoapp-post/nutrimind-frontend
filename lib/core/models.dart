@@ -73,7 +73,13 @@ class Food {
   final String? allergensText;
   final String? tracesText;
   final String? quantityText;
+
+  /// Immagine grande, per la scheda del prodotto.
   final String? imageUrl;
+
+  /// Immagine piccola, per gli elenchi. Scaricare la grande per
+  /// disegnare una riga è uno spreco su rete mobile.
+  final String? imageThumbUrl;
 
   const Food({
     required this.id,
@@ -100,7 +106,12 @@ class Food {
     this.tracesText,
     this.quantityText,
     this.imageUrl,
+    this.imageThumbUrl,
   });
+
+  /// Immagine da usare in un elenco: la piccola se c'è, altrimenti la
+  /// grande, altrimenti niente e si disegna un segnaposto.
+  String? get listImage => imageThumbUrl ?? imageUrl;
 
   bool get isVerified => verification == 'verified';
 
@@ -143,7 +154,14 @@ class Food {
         allergensText: _text(json['allergens_text']),
         tracesText: _text(json['traces_text']),
         quantityText: _text(json['quantity_text']),
-        imageUrl: _text(json['image_front_url']),
+        // `image_url` e `image_thumb_url` sono le colonne di `foods`
+        // (migration 028). `image_front_url` è il nome che usava solo la
+        // risposta di `search-off`: resta come riserva perché una
+        // funzione pubblicata prima della 028 lo manda ancora.
+        imageUrl: _text(json['image_url']) ?? _text(json['image_front_url']),
+        imageThumbUrl: _text(json['image_thumb_url']) ??
+            _text(json['image_front_url']) ??
+            _text(json['image_url']),
       );
 }
 
@@ -668,6 +686,10 @@ class OffProduct {
   final double fatG;
   final String? nutriscoreGrade;
 
+  /// Immagine piccola del prodotto: anche i risultati del catalogo
+  /// esterno si mostrano con la foto, come quelli nostri.
+  final String? imageThumbUrl;
+
   const OffProduct({
     required this.name,
     this.brand,
@@ -677,6 +699,7 @@ class OffProduct {
     this.carbsG = 0,
     this.fatG = 0,
     this.nutriscoreGrade,
+    this.imageThumbUrl,
   });
 
   factory OffProduct.fromJson(Map<String, dynamic> json) => OffProduct(
@@ -688,7 +711,13 @@ class OffProduct {
         carbsG: _num(json['carbs_g']),
         fatG: _num(json['fat_g']),
         nutriscoreGrade: (json['nutriscore_grade'] as String?)?.toUpperCase(),
+        imageThumbUrl: Food._text(json['image_thumb_url']) ??
+            Food._text(json['image_front_url']) ??
+            Food._text(json['image_url']),
       );
+
+  /// Immagine da usare in un elenco, come [Food.listImage].
+  String? get listImage => imageThumbUrl;
 
   /// Marca da mostrare accanto al nome, oppure null.
   String? get brandLabel => _brandLabel(brand, name);

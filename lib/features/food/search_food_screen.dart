@@ -8,6 +8,7 @@ import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
 import '../../core/feedback.dart';
+import '../../core/widgets/food_thumb.dart';
 import '../nutritionist/create_food_screen.dart';
 import 'food_detail_screen.dart';
 import 'nutrient_filters_sheet.dart';
@@ -310,6 +311,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
           ),
         for (final food in _results) ...[
           _tile(
+            image: food.listImage,
             title: food.name,
             subtitle: [
               if (food.subtitle.isNotEmpty) food.subtitle,
@@ -367,6 +369,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
       ),
       for (final p in _offResults!) ...[
         _tile(
+          image: p.listImage,
           title: p.name,
           subtitle: [
             if (p.brandLabel != null) p.brandLabel!,
@@ -383,13 +386,24 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
     ];
   }
 
-  Widget _tile({required String title, required String subtitle, required Widget trailing, VoidCallback? onTap}) {
+  /// [image] è l'indirizzo della foto del prodotto, quando c'è: una
+  /// confezione si riconosce prima di leggerne il nome. Senza foto resta
+  /// il segnaposto, della stessa misura, così la lista non si muove
+  /// mentre le immagini arrivano.
+  Widget _tile({
+    required String title,
+    required String subtitle,
+    required Widget trailing,
+    String? image,
+    VoidCallback? onTap,
+  }) {
     return Material(
       color: cardColor,
       borderRadius: BorderRadius.circular(16),
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onTap: onTap,
+        leading: FoodThumb(url: image),
         title: Text(title, style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle, style: TextStyle(color: textSecondary)),
         trailing: trailing,
