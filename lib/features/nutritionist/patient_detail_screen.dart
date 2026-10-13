@@ -9,6 +9,7 @@ import '../../core/community_models.dart';
 import '../../core/nutritionist_service.dart';
 import '../../core/plan_service.dart';
 import '../../core/recipe_service.dart';
+import '../../core/feedback.dart';
 import '../plan/macro_plan_editor_screen.dart';
 import 'suggest_to_patient_sheet.dart';
 
@@ -98,7 +99,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       await AccountService.revokeLink(widget.patient.linkId);
       if (mounted) Navigator.pop(context, true);
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -149,7 +150,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Commento inviato.')));
       _load();
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -289,7 +290,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       await SuggestionService.remove(s.id);
       if (mounted) _load();
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     }
   }
 

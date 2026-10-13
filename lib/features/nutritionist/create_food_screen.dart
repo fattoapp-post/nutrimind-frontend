@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/nutritionist_service.dart';
+import '../../core/feedback.dart';
 
 /// Nuovo alimento. Valori nutrizionali per 100 g.
 /// - nutrizionista verificato: entra nel catalogo (create_food), con una
@@ -77,7 +78,7 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
       } on AppError catch (e) {
         if (!mounted) return;
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        showAppError(context, e);
       }
       return;
     }
@@ -101,7 +102,7 @@ class _CreateFoodScreenState extends State<CreateFoodScreen> {
     } on AppError catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
     }
   }
 

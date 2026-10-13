@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/admin_service.dart';
 import '../../core/app_error.dart';
 import '../../core/theme.dart';
+import '../../core/feedback.dart';
 import '../profile/profile_widgets.dart';
 
 /// Coda degli alimenti creati dalle persone e mai verificati.
@@ -65,7 +66,7 @@ class _FoodsToReviewScreenState extends State<FoodsToReviewScreen> {
       _load();
     } on AppError catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
     } finally {
       if (mounted) setState(() => _busyId = null);
     }

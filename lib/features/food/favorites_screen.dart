@@ -8,6 +8,7 @@ import '../../core/models.dart';
 import 'food_detail_screen.dart';
 import 'search_food_screen.dart';
 import '../../core/widgets/custom_bottom_nav.dart';
+import '../../core/feedback.dart';
 import '../shell/patient_shell.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -237,7 +238,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> with ReloadOnTabVisib
       await FoodService.deletePersonalMeal(meal.id);
       if (mounted) setState(() => _personalMeals = _personalMeals.where((m) => m.id != meal.id).toList());
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     }
   }
 

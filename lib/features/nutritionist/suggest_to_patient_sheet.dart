@@ -8,6 +8,7 @@ import '../../core/food_service.dart';
 import '../../core/models.dart';
 import '../../core/recipe_service.dart';
 import '../../core/theme.dart';
+import '../../core/feedback.dart';
 
 /// Foglio per consigliare a *quel* paziente una ricetta o un alimento.
 ///
@@ -143,7 +144,7 @@ class _SuggestToPatientSheetState extends State<SuggestToPatientSheet> {
     } on AppError catch (e) {
       if (!mounted) return;
       setState(() => _busyId = null);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
     }
   }
 

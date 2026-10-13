@@ -136,8 +136,22 @@ class AccountService {
     });
   }
 
-  /// Solo pazienti. Restituisce l'id del collegamento creato.
-  static Future<String?> redeemInvitation(String code, Set<ConsentScope> scopes) {
+  /// Solo pazienti. Restituisce l'id del collegamento.
+  ///
+  /// Attenzione al contratto della RPC: `redeem_invitation` restituisce
+  /// **null** — non un errore — quando il codice non esiste, è scaduto,
+  /// è stato revocato oppure **è già stato usato**. Lo fa di proposito:
+  /// prima di rinunciare scrive il tentativo fallito in
+  /// `invitation_attempts`, e un `raise` annullerebbe anche quella
+  /// scrittura, cioè il conteggio che blocca chi prova i codici a
+  /// raffica.
+  ///
+  /// Qui quel null diventa un errore vero. Senza questa conversione il
+  /// chiamante non distingueva il successo dal nulla di fatto e
+  /// annunciava "Collegamento creato" senza aver collegato niente: è il
+  /// caso di chi si scollega e riprova con lo stesso codice, che resta
+  /// consumato per sempre.
+  static Future<String> redeemInvitation(String code, Set<ConsentScope> scopes) {
     return withSessionRetry(() async {
       final data = await supabase.rpc('redeem_invitation', params: {
         'p_code': code.trim().toUpperCase(),
@@ -145,8 +159,20 @@ class AccountService {
         'p_policy_version': consentPolicyVersion,
       });
       final row = data is List ? (data.isEmpty ? null : data.first) : data;
-      if (row is Map) return (row['link_id'] ?? row['linkId'] ?? row['id'])?.toString();
-      return row?.toString();
+      final linkId = row is Map
+          ? (row['link_id'] ?? row['linkId'] ?? row['id'])?.toString()
+          : row?.toString();
+
+      if (linkId == null || linkId.isEmpty) {
+        throw const AppError(
+          'Questo codice non è utilizzabile: può essere sbagliato, scaduto '
+          'oppure già usato. Ogni codice invito vale una volta sola, quindi '
+          'se ti eri già collegato con questo chiedine uno nuovo al tuo '
+          'nutrizionista.',
+          status: 404,
+        );
+      }
+      return linkId;
     });
   }
 

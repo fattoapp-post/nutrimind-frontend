@@ -9,6 +9,7 @@ import '../../core/links.dart';
 import '../../core/models.dart';
 import '../../core/recipe_service.dart';
 import '../../core/supabase.dart';
+import '../../core/feedback.dart';
 import 'recipe_editor_screen.dart';
 
 /// Scheda di una ricetta: aggiunta al diario, gestione della propria ricetta
@@ -86,7 +87,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       await _load();
     } on AppError catch (e) {
       if (!mounted) return;
-      _snack(e.message);
+      showAppError(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -184,7 +185,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     } on AppError catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      _snack(e.message);
+      showAppError(context, e);
     }
   }
 

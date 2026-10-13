@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
+import '../../core/feedback.dart';
 import '../nutritionist/create_food_screen.dart';
 import 'food_detail_screen.dart';
 import 'nutrient_filters_sheet.dart';
@@ -103,7 +104,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
       }
       await _open(food);
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     } finally {
       if (mounted) setState(() => _importingBarcode = null);
     }
@@ -195,10 +196,10 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: textPrimary),
         title: Text(
           widget.slot == null ? 'Cerca un alimento' : 'Aggiungi a ${widget.slot!.label}',
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         elevation: 0,
       ),
@@ -211,7 +212,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
               children: [
                 Expanded(
                   child: TextField(
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textPrimary),
                     autofocus: true, // Apre subito la tastiera
                     decoration: InputDecoration(
                       hintText: 'Cerca un alimento...',
@@ -389,7 +390,7 @@ class _SearchFoodScreenState extends State<SearchFoodScreen> {
       child: ListTile(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         onTap: onTap,
-        title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(title, style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle, style: TextStyle(color: textSecondary)),
         trailing: trailing,
       ),

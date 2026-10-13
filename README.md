@@ -43,12 +43,16 @@ nel browser che si preferisce:
 flutter run -d web-server --web-port=8080 --dart-define-from-file=env/dev.json
 ```
 
-Serve l'app su **`http://localhost:8080`**. Attenzione: il dev server si
-lega al solo loopback IPv6, quindi `http://127.0.0.1:8080` **non
-risponde** e non spiega il perché. Per avere IPv4 aggiungere
-`--web-hostname=127.0.0.1`; per aprire l'app dal telefono sulla stessa
-rete `--web-hostname=0.0.0.0`, tenendo presente che così è raggiungibile
-da tutta la rete locale.
+Serve l'app su **`http://localhost:8080`**. Così com'è si lega a
+`0.0.0.0`, quindi rispondono sia `localhost` sia `127.0.0.1`, e l'app è
+raggiungibile anche dal telefono sulla stessa rete (comodo, ma tenere
+presente che la espone a tutta la rete locale).
+
+**Non aggiungere `--web-hostname=localhost`**: con quel parametro il
+server si lega al *solo* loopback IPv6 e `http://127.0.0.1:8080` smette
+di rispondere senza spiegare il perché. Verificato: `localhost` e
+`[::1]` danno 200, `127.0.0.1` non si connette. Se serve il solo IPv4,
+`--web-hostname=127.0.0.1`.
 
 ## Funzionalità
 

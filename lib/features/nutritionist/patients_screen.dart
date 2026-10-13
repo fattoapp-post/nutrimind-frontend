@@ -7,6 +7,7 @@ import '../../core/chat_service.dart';
 import '../../core/models.dart';
 import '../../core/nutritionist_service.dart';
 import '../../core/recipe_service.dart';
+import '../../core/feedback.dart';
 import '../chat/chat_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../profile/invitations_screen.dart';
@@ -205,7 +206,7 @@ class _PatientsScreenState extends State<PatientsScreen> with ReloadOnTabVisible
       if (!mounted) return;
       _push(ChatScreen(conversationId: id, otherName: p.displayName, iAmNutritionist: true, linked: true));
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     }
   }
 

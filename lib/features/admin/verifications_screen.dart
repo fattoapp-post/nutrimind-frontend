@@ -4,6 +4,7 @@ import '../../core/app_error.dart';
 import '../../core/community_models.dart';
 import '../../core/supabase.dart';
 import '../../core/theme.dart';
+import '../../core/feedback.dart';
 import '../profile/profile_widgets.dart';
 
 /// Una richiesta di abilitazione professionale, come la restituisce
@@ -132,7 +133,7 @@ class _AdminVerificationsScreenState extends State<AdminVerificationsScreen> {
       _load();
     } on AppError catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
     } finally {
       if (mounted) setState(() => _busyId = null);
     }

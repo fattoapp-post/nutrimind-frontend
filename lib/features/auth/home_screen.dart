@@ -14,6 +14,7 @@ import '../../core/food_service.dart';
 import '../../core/plan_service.dart';
 import '../plan/macro_plan_editor_screen.dart';
 import '../../core/models.dart';
+import '../../core/feedback.dart';
 import '../food/food_detail_screen.dart';
 import '../food/scanner_screen.dart';
 import '../food/search_food_screen.dart';
@@ -121,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       await NotificationService.markCommentRead(c.id);
       _loadComments(_selectedDate);
     } on AppError catch (e) {
-      if (mounted) _showSnack(e.message);
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -198,49 +199,35 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
     if (added == true) _loadDiaryData();
   }
 
+  /// La ricerca per codice a barre adesso avviene dentro
+  /// [ScannerScreen], che mostra l'attesa e riapre la fotocamera se non
+  /// trova niente. Qui arriva solo l'esito già deciso: un prodotto da
+  /// aggiungere, oppure la richiesta di inserirlo a mano.
   Future<void> _openScanner(MealSlot slot) async {
-    final barcode = await Navigator.push<String>(
+    final outcome = await Navigator.push<ScanOutcome>(
       context,
       MaterialPageRoute(builder: (context) => const ScannerScreen()),
     );
-    if (barcode == null || !mounted) return;
+    if (outcome == null || !mounted) return;
 
-    _showSnack('Cerco il prodotto...');
-    try {
-      var food = await FoodService.getFoodByBarcode(barcode);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      if (food == null) {
-        // Non è né in catalogo né nel database esteso: proponi di inserirlo
-        final create = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Prodotto non trovato'),
-            content: Text('Il codice $barcode non è nel catalogo. Vuoi inserirlo tu copiando i valori dalla confezione?'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annulla')),
-              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Inserisci')),
-            ],
-          ),
-        );
-        if (create != true || !mounted) return;
+    Food? food;
+    switch (outcome) {
+      case ScanFound(food: final f):
+        food = f;
+      case ScanCreate(barcode: final barcode):
         food = await Navigator.push<Food>(
           context,
           MaterialPageRoute(builder: (_) => CreateFoodScreen(personal: true, initialBarcode: barcode)),
         );
-        if (food == null || !mounted) return;
-      }
-      final selected = food;
-      final added = await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(builder: (_) => FoodDetailScreen(food: selected, initialSlot: slot, date: _selectedDate)),
-      );
-      if (added == true) _loadDiaryData();
-    } on AppError catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      _showSnack(e.message);
     }
+    if (food == null || !mounted) return;
+
+    final selected = food;
+    final added = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => FoodDetailScreen(food: selected, initialSlot: slot, date: _selectedDate)),
+    );
+    if (added == true) _loadDiaryData();
   }
 
   Future<void> _deleteEntry(DiaryEntry entry) async {
@@ -250,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       _showSnack('${entry.name} rimosso.');
       _loadDiaryData();
     } on AppError catch (e) {
-      if (mounted) _showSnack(e.message);
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -259,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
     try {
       meals = await FoodService.getPersonalMeals();
     } on AppError catch (e) {
-      if (mounted) _showSnack(e.message);
+      if (mounted) showAppError(context, e);
       return;
     }
     if (!mounted) return;
@@ -293,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       _showSnack(count == 0 ? 'Il pasto salvato non contiene alimenti.' : '${meal.name} aggiunto a ${slot.label}.');
       _loadDiaryData();
     } on AppError catch (e) {
-      if (mounted) _showSnack(e.message);
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -318,7 +305,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       await FoodService.createPersonalMeal(name, withFood, defaultSlot: slot);
       if (mounted) _showSnack('Pasto "$name" salvato.');
     } on AppError catch (e) {
-      if (mounted) _showSnack(e.message);
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -477,7 +464,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                 _buildComments(),
               ],
               const SizedBox(height: 24),
-              const Text('I tuoi pasti', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text('I tuoi pasti', style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               _buildMealsList(),
               const SizedBox(height: 40),
@@ -499,7 +486,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
           Row(children: [
             Icon(Icons.chat_bubble_outline, color: primaryTeal, size: 18),
             SizedBox(width: 8),
-            Text('Note del nutrizionista', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('Note del nutrizionista', style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
           ]),
           for (final c in _comments)
             Padding(
@@ -513,7 +500,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                       children: [
                         if (c.slot != null)
                           Text(c.slot!.label, style: TextStyle(color: textSecondary, fontSize: 12)),
-                        Text(c.body, style: TextStyle(color: Colors.white, fontWeight: c.isRead ? FontWeight.normal : FontWeight.bold)),
+                        Text(c.body, style: TextStyle(color: textPrimary, fontWeight: c.isRead ? FontWeight.normal : FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -529,15 +516,31 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
 
   Widget _buildHeader() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Ciao, $_userName', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(_getFormattedDate(_selectedDate), style: TextStyle(color: textSecondary, fontSize: 14)),
-          ],
+        // Il nome lo scrive l'utente e può essere lungo. Senza
+        // `Expanded` la riga sfora: su uno schermo da 320 px il saluto
+        // finisce sotto le due icone e Flutter taglia il testo. Con
+        // `Expanded` più ellissi il nome si accorcia e le icone restano
+        // al loro posto.
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ciao, $_userName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: textPrimary, fontSize: 26, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _getFormattedDate(_selectedDate),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: textSecondary, fontSize: 14),
+              ),
+            ],
+          ),
         ),
         Row(children: [
           _roundIcon(Icons.chat_bubble_outline, 'Messaggi', _unreadMessages, _openChats),
@@ -556,7 +559,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
           icon: Badge(
             isLabelVisible: badge > 0,
             label: Text('$badge'),
-            child: Icon(icon, color: Colors.white),
+            child: Icon(icon, color: textPrimary),
           ),
         ),
       );
@@ -602,7 +605,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Macros di oggi', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('Macros di oggi', style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
               Text('$currentKcal / $maxKcal kcal', style: TextStyle(color: textSecondary, fontSize: 14)),
             ],
           ),
@@ -631,7 +634,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
             RichText(
               text: TextSpan(
                 children: [
-                  TextSpan(text: '${current}g', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  TextSpan(text: '${current}g', style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
                   TextSpan(text: ' / ${max}g', style: TextStyle(color: textSecondary)),
                 ],
               ),
@@ -822,7 +825,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(title, style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
                       if (isEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
@@ -888,14 +891,14 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: cardColor,
-        title: Text('Modifica ${item.name}', style: const TextStyle(color: Colors.white)),
+        title: Text('Modifica ${item.name}', style: TextStyle(color: textPrimary)),
         content: item.foodId == null
             ? Text('Attualmente: ${item.grams.round()}g', style: TextStyle(color: textSecondary))
             : TextField(
                 controller: controller,
                 autofocus: true,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: textPrimary),
                 decoration: InputDecoration(
                   labelText: 'Grammi',
                   labelStyle: TextStyle(color: textSecondary),
@@ -935,7 +938,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
         _showSnack('${item.name} aggiornato a ${grams.round()} g.');
         _loadDiaryData();
       } on AppError catch (e) {
-        if (mounted) _showSnack(e.message);
+        if (mounted) showAppError(context, e);
       }
     }
   }
@@ -948,7 +951,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
       _showSnack(count == 0 ? 'Nessun alimento in ${slot.label} il giorno prima.' : '$count alimenti copiati in ${slot.label}.');
       if (count > 0) _loadDiaryData();
     } on AppError catch (e) {
-      if (mounted) _showSnack(e.message);
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -967,7 +970,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                 children: [
                   Text(
                     '${item.name} · ${item.grams.round()}g',
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: TextStyle(color: textPrimary, fontSize: 14),
                   ),
                   const SizedBox(height: 4),
                   Wrap(
@@ -982,7 +985,7 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
                 ],
               ),
             ),
-            Text('${item.kcal.round()} kcal', style: const TextStyle(color: Colors.white, fontSize: 14)),
+            Text('${item.kcal.round()} kcal', style: TextStyle(color: textPrimary, fontSize: 14)),
           ],
         ),
       ),
@@ -997,9 +1000,9 @@ class _HomeScreenState extends State<HomeScreen> with ReloadOnTabVisible {
         children: [
           Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
           const SizedBox(width: 6),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          Text(label, style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(width: 4),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          Text(value, style: TextStyle(color: textPrimary, fontSize: 12, fontWeight: FontWeight.bold)),
         ],
       ),
     );

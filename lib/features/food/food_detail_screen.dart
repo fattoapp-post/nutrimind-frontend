@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/app_error.dart';
 import '../../core/food_service.dart';
 import '../../core/models.dart';
+import '../../core/feedback.dart';
 
 /// Dettaglio alimento. Restituisce `true` se è stato aggiunto al diario.
 class FoodDetailScreen extends StatefulWidget {
@@ -20,8 +21,13 @@ class FoodDetailScreen extends StatefulWidget {
 }
 
 class _FoodDetailScreenState extends State<FoodDetailScreen> {
-  
-  
+  /// Limiti del vincolo `diary_entries_grams_check` nel database.
+  static const _minGrams = 1;
+  static const _maxGrams = 10000;
+
+  /// Passo dei due pulsanti. Serve per i gesti rapidi; per una quantità
+  /// precisa si tocca il numero e si scrive.
+  static const _step = 10;
 
   late int _currentGrams;
   bool _isFavorite = false;
@@ -31,7 +37,11 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _currentGrams = (widget.initialGrams ?? widget.food.servingG ?? 100).round().clamp(10, 5000);
+    // Il database ammette qualsiasi quantità fra 1 e 10000 g
+    // (`diary_entries_grams_check`). Prima qui il minimo era 10: una
+    // bustina di zucchero o cinque grammi di olio non si potevano
+    // nemmeno registrare.
+    _currentGrams = (widget.initialGrams ?? widget.food.servingG ?? 100).round().clamp(_minGrams, _maxGrams);
     _loadFavorite();
     _loadPortions();
   }
@@ -74,7 +84,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     } on AppError catch (e) {
       if (!mounted) return;
       setState(() => _isFavorite = !target);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
     } finally {
       if (mounted) setState(() => _savingFavorite = false);
     }
@@ -162,20 +172,43 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildQtyButton(Icons.remove, () {
-                        if (_currentGrams > 10) setState(() => _currentGrams -= 10);
-                      }),
-                      RichText(
-                        text: TextSpan(
-                          children: [
-                            TextSpan(text: '$_currentGrams', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary)),
-                            TextSpan(text: ' g', style: TextStyle(fontSize: 18, color: textSecondary)),
-                          ],
+                      _buildQtyButton(Icons.remove, _currentGrams <= _minGrams
+                          ? null
+                          : () => setState(() =>
+                              _currentGrams = (_currentGrams - _step).clamp(_minGrams, _maxGrams))),
+                      // Il numero si tocca e si scrive: i due pulsanti
+                      // vanno di dieci in dieci, che va bene per
+                      // aggiustare ma non per pesare.
+                      Expanded(
+                        child: InkWell(
+                          onTap: _askGrams,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Column(
+                              children: [
+                                FittedBox(
+                                  child: RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        TextSpan(text: '$_currentGrams', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary)),
+                                        TextSpan(text: ' g', style: TextStyle(fontSize: 18, color: textSecondary)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                Text('tocca per scrivere la quantità',
+                                    style: TextStyle(color: primaryTeal, fontSize: 11)),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      _buildQtyButton(Icons.add, () {
-                        setState(() => _currentGrams += 10);
-                      }, isFilled: true),
+                      _buildQtyButton(Icons.add, _currentGrams >= _maxGrams
+                          ? null
+                          : () => setState(() =>
+                              _currentGrams = (_currentGrams + _step).clamp(_minGrams, _maxGrams)),
+                          isFilled: true),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -196,7 +229,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                           ChoiceChip(
                             label: Text('${p.label} · ${p.grams.round()} g'),
                             selected: _currentGrams == p.grams.round(),
-                            selectedColor: const Color(0xFFE6F4F1),
+                            selectedColor: tealSoft,
                             onSelected: (_) => setState(() => _currentGrams = p.grams.round()),
                           ),
                       ],
@@ -209,7 +242,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: const Color(0xFFF3F9F8), borderRadius: BorderRadius.circular(16)),
+              decoration: BoxDecoration(color: tealSoft, borderRadius: BorderRadius.circular(16)),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -261,7 +294,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                     style: TextStyle(color: _isFavorite ? Colors.white : primaryTeal, fontSize: 16, fontWeight: FontWeight.bold)
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isFavorite ? primaryTeal : Colors.white,
+                    backgroundColor: _isFavorite ? primaryTeal : cardColor,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     side: BorderSide(color: primaryTeal),
@@ -462,27 +495,77 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     );
   }
 
-  Widget _buildQtyButton(IconData icon, VoidCallback onTap, {bool isFilled = false}) {
+  /// `onTap` nullo = pulsante al limite, quindi spento invece di
+  /// toccabile a vuoto.
+  Widget _buildQtyButton(IconData icon, VoidCallback? onTap, {bool isFilled = false}) {
+    final off = onTap == null;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isFilled ? primaryTeal : Colors.transparent,
-          border: isFilled ? null : Border.all(color: borderColor),
-          borderRadius: BorderRadius.circular(16),
+      child: Opacity(
+        opacity: off ? 0.4 : 1,
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: isFilled ? primaryTeal : Colors.transparent,
+            border: isFilled ? null : Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(icon, color: isFilled ? Colors.white : textPrimary),
         ),
-        child: Icon(icon, color: isFilled ? Colors.white : textPrimary),
       ),
     );
+  }
+
+  /// Quantità esatta scritta a mano. Il passo da dieci grammi dei due
+  /// pulsanti serve per correggere, non per pesare: un uovo da 53 g o
+  /// 8 g di caffè non si raggiungono a scatti di dieci.
+  Future<void> _askGrams() async {
+    final controller = TextEditingController(text: '$_currentGrams');
+    int? parse(String raw) {
+      final n = double.tryParse(raw.trim().replaceAll(',', '.'));
+      if (n == null || n <= 0) return null;
+      return n.round().clamp(_minGrams, _maxGrams);
+    }
+
+    final value = await showDialog<int>(
+      context: context,
+      builder: (ctx) {
+        ctx.watchTheme();
+        return AlertDialog(
+          backgroundColor: cardColor,
+          title: Text('Quanti grammi?', style: TextStyle(color: textPrimary)),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            style: TextStyle(color: textPrimary, fontSize: 22, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              suffixText: 'g',
+              helperText: 'Da $_minGrams a $_maxGrams g',
+              isDense: true,
+            ),
+            onSubmitted: (v) => Navigator.pop(ctx, parse(v)),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annulla')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, parse(controller.text)),
+              child: const Text('Conferma'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    if (value != null && mounted) setState(() => _currentGrams = value);
   }
 
   Widget _buildVerificationBadge(bool isVerified) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: isVerified ? const Color(0xFFE6F4F1) : borderColor, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: isVerified ? tealSoft : borderColor, borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Icon(isVerified ? Icons.verified_outlined : Icons.info_outline, size: 14, color: isVerified ? primaryTeal : textSecondary),
@@ -511,7 +594,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     } on AppError catch (e) {
       if (!mounted) return;
       setState(() => _adding = false);
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
     }
   }
 

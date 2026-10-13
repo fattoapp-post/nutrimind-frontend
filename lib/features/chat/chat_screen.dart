@@ -10,6 +10,7 @@ import '../../core/community_models.dart';
 import '../../core/models.dart';
 import '../../core/recipe_service.dart';
 import '../../core/supabase.dart';
+import '../../core/feedback.dart';
 import '../recipes/recipe_detail_screen.dart';
 
 /// Conversazione paziente-nutrizionista con aggiornamenti in tempo reale.
@@ -124,7 +125,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _input.clear();
       await _refreshAfterSend();
     } on AppError catch (e) {
-      if (mounted) _snack(e.message);
+      if (mounted) showAppError(context, e);
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -170,7 +171,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _snack('Invito inviato');
       await _refreshAfterSend();
     } on AppError catch (e) {
-      if (mounted) _snack(e.message);
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -188,7 +189,7 @@ class _ChatScreenState extends State<ChatScreen> {
       if (!mounted) return;
       await _refreshAfterSend();
     } on AppError catch (e) {
-      if (mounted) _snack(e.message);
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -209,7 +210,7 @@ class _ChatScreenState extends State<ChatScreen> {
       setState(() => _linked = true);
       _snack('Ora sei collegato al tuo nutrizionista');
     } on AppError catch (e) {
-      if (mounted) _snack(e.message);
+      if (mounted) showAppError(context, e);
     } finally {
       if (mounted) setState(() => _redeeming.remove(m.id));
     }

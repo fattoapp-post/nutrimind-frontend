@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/app_error.dart';
 import '../../core/models.dart';
 import '../../core/notification_service.dart';
+import '../../core/feedback.dart';
 
 /// Notifiche non lette. Toccandone una viene segnata come letta.
 class NotificationsScreen extends StatefulWidget {
@@ -47,7 +48,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await NotificationService.markRead(n.id);
     } on AppError catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
       _load();
     }
   }
@@ -59,7 +60,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await Future.wait(items.map((n) => NotificationService.markRead(n.id)));
     } on AppError catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
       _load();
     }
   }

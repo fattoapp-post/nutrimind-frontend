@@ -12,6 +12,7 @@ import '../../core/food_service.dart';
 import '../../core/links.dart';
 import '../../core/models.dart';
 import '../../core/recipe_service.dart';
+import '../../core/feedback.dart';
 
 /// Creazione o modifica di una bozza di ricetta. Restituisce `true` se salvata.
 class RecipeEditorScreen extends StatefulWidget {
@@ -225,7 +226,7 @@ class _RecipeEditorScreenState extends State<RecipeEditorScreen> {
     } on AppError catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      _snack(e.message);
+      showAppError(context, e);
     }
   }
 

@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/account_service.dart';
 import '../../core/app_error.dart';
 import '../../core/models.dart';
+import '../../core/feedback.dart';
 import 'profile_widgets.dart';
 
 /// Nutrizionista: richiesta e stato della verifica professionale.
@@ -43,7 +44,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
       final v = await AccountService.getLatestVerification();
       if (mounted) setState(() => _verification = v);
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }

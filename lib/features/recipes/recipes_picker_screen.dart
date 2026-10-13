@@ -9,6 +9,7 @@ import '../../core/community_models.dart';
 import '../../core/models.dart';
 import '../../core/food_service.dart';
 import '../../core/recipe_service.dart';
+import '../../core/feedback.dart';
 import '../food/food_detail_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'recipe_editor_screen.dart';
@@ -90,7 +91,7 @@ class _RecipesPickerScreenState extends State<RecipesPickerScreen> {
       );
       if (mounted && added == true) Navigator.pop(context, true);
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     }
   }
 

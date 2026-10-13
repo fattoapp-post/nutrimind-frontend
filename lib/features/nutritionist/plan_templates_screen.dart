@@ -7,6 +7,7 @@ import '../../core/app_error.dart';
 import '../../core/community_models.dart';
 import '../../core/directory_service.dart';
 import '../../core/models.dart';
+import '../../core/feedback.dart';
 
 /// Piani alimentari "di base" del nutrizionista, mostrati nella sua pagina
 /// pubblica.
@@ -79,7 +80,7 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
       if (!mounted) return;
       // Ripristina lo stato precedente
       setState(() => _plans = [for (final x in _plans) x.id == id ? p : x]);
-      _snack(e.message);
+      showAppError(context, e);
     } finally {
       if (mounted) setState(() => _toggling.remove(id));
     }
@@ -116,7 +117,7 @@ class _PlanTemplatesScreenState extends State<PlanTemplatesScreen> {
       setState(() => _plans = _plans.where((x) => x.id != id).toList());
       _snack('Piano eliminato');
     } on AppError catch (e) {
-      if (mounted) _snack(e.message);
+      if (mounted) showAppError(context, e);
     }
   }
 
@@ -398,7 +399,7 @@ class _PlanFormScreenState extends State<_PlanFormScreen> {
       Navigator.of(context).pop(true);
     } on AppError catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

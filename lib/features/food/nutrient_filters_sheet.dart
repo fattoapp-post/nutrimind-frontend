@@ -115,9 +115,9 @@ class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
             const SizedBox(height: 20),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text('Filtri nutrizionali',
-                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
                 ),
                 IconButton(icon: Icon(Icons.close, color: textSecondary), onPressed: () => Navigator.pop(context)),
               ],
@@ -210,7 +210,7 @@ class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
           Row(children: [
             Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
             const SizedBox(width: 6),
-            Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Text(label, style: TextStyle(color: textPrimary, fontWeight: FontWeight.bold)),
           ]),
           const SizedBox(height: 8),
           Row(children: [
@@ -218,7 +218,7 @@ class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
               child: TextField(
                 controller: min,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: textPrimary),
                 decoration: dec('Almeno'),
               ),
             ),
@@ -227,7 +227,7 @@ class _NutrientFiltersSheetState extends State<NutrientFiltersSheet> {
               child: TextField(
                 controller: max,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: textPrimary),
                 decoration: dec('Al massimo'),
               ),
             ),

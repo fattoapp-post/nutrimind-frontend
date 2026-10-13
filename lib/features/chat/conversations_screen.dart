@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../core/app_error.dart';
 import '../../core/chat_service.dart';
 import '../../core/community_models.dart';
+import '../../core/feedback.dart';
 import '../directory/find_nutritionist_screen.dart';
 import 'chat_screen.dart';
 
@@ -45,7 +46,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     } on AppError catch (e) {
       if (!mounted) return;
       if (silent && _items.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        showAppError(context, e);
       } else {
         setState(() => _error = e.message);
       }

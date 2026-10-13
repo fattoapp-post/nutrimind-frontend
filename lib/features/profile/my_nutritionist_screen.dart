@@ -8,6 +8,7 @@ import '../../core/chat_service.dart';
 import '../../core/community_models.dart';
 import '../../core/links.dart';
 import '../../core/models.dart';
+import '../../core/feedback.dart';
 import '../chat/chat_screen.dart';
 import '../directory/find_nutritionist_screen.dart';
 import 'profile_widgets.dart';
@@ -79,7 +80,7 @@ class _MyNutritionistScreenState extends State<MyNutritionistScreen> {
         MaterialPageRoute(builder: (_) => ChatScreen(conversationId: id, otherName: _info[link.nutritionistId]?.name ?? 'Nutrizionista', linked: true)),
       );
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

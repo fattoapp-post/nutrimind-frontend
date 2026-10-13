@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/app_error.dart';
+import '../../core/feedback.dart';
 import '../../core/models.dart';
 import '../../core/plan_service.dart';
 import '../../core/theme.dart';
@@ -42,7 +43,22 @@ class _MacroPlanEditorScreenState extends State<MacroPlanEditorScreen> {
   bool _saving = false;
   String? _error;
 
+  /// Un controller per ogni casella (pasto × macro), creato una volta
+  /// sola e mai sostituito.
+  ///
+  /// Prima ogni campo era identificato da una `ValueKey` che conteneva
+  /// **il valore digitato dentro il campo stesso**. A ogni carattere il
+  /// valore cambiava, quindi cambiava la chiave, quindi Flutter
+  /// considerava quel campo un widget diverso: lo distruggeva e ne
+  /// creava uno nuovo con un controller nuovo. Il risultato era il
+  /// focus perso a ogni tasto, le cifre che finivano nell'ordine
+  /// sbagliato e, con diciotto caselle sulla stessa schermata, una
+  /// ricostruzione continua che blocca la pagina.
+  final Map<String, TextEditingController> _cells = {};
+
   bool get _forPatient => widget.patientId != null;
+
+  static String _grams(double v) => v == 0 ? '' : v.round().toString();
 
   @override
   void initState() {
@@ -54,14 +70,45 @@ class _MacroPlanEditorScreenState extends State<MacroPlanEditorScreen> {
       _targets.addAll(current.targets);
       _kcal.text = current.kcal.round().toString();
     }
+    for (final slot in PlanService.planSlots) {
+      final t = _targets[slot] ?? const MealTarget();
+      _cells['${slot.value}_P'] = TextEditingController(text: _grams(t.proteinG));
+      _cells['${slot.value}_C'] = TextEditingController(text: _grams(t.carbsG));
+      _cells['${slot.value}_G'] = TextEditingController(text: _grams(t.fatG));
+    }
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _notes, _kcal, _protein, _carbs, _fat]) {
+    for (final c in [_name, _notes, _kcal, _protein, _carbs, _fat, ..._cells.values]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  /// Scrive nel modello il valore di una casella. Legge il pasto dalla
+  /// mappa al momento della chiamata invece di catturarlo quando il
+  /// campo viene costruito: così due modifiche ravvicinate non si
+  /// sovrascrivono a vicenda.
+  void _setMacro(MealSlot slot, String macro, double value) {
+    final t = _targets[slot] ?? const MealTarget();
+    _targets[slot] = switch (macro) {
+      'P' => t.copyWith(proteinG: value),
+      'C' => t.copyWith(carbsG: value),
+      _ => t.copyWith(fatG: value),
+    };
+  }
+
+  /// Riallinea le caselle al modello. Serve solo quando i valori
+  /// cambiano senza che l'utente li abbia digitati, cioè dopo
+  /// "Distribuisci sui pasti".
+  void _syncCells() {
+    for (final slot in PlanService.planSlots) {
+      final t = _targets[slot] ?? const MealTarget();
+      _cells['${slot.value}_P']?.text = _grams(t.proteinG);
+      _cells['${slot.value}_C']?.text = _grams(t.carbsG);
+      _cells['${slot.value}_G']?.text = _grams(t.fatG);
+    }
   }
 
   double _num(TextEditingController c) => double.tryParse(c.text.replaceAll(',', '.')) ?? 0;
@@ -88,6 +135,7 @@ class _MacroPlanEditorScreenState extends State<MacroPlanEditorScreen> {
           carbsPct: _num(_carbs),
           fatPct: _num(_fat),
         ));
+      _syncCells();
     });
   }
 
@@ -113,10 +161,13 @@ class _MacroPlanEditorScreenState extends State<MacroPlanEditorScreen> {
       Navigator.pop(context, true);
     } on AppError catch (e) {
       if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _error = e.message;
-      });
+      setState(() => _saving = false);
+      // Un salvataggio rifiutato dal server è un errore vero e va
+      // fermato in faccia a chi lo ha chiesto: se restasse solo scritto
+      // in piccolo sotto il pulsante si crederebbe di aver salvato.
+      // I messaggi di `_error` restano per le correzioni sui campi, che
+      // è giusto leggere accanto al campo da correggere.
+      await showAppError(context, e, title: 'Piano non salvato');
     }
   }
 
@@ -250,13 +301,15 @@ class _MacroPlanEditorScreenState extends State<MacroPlanEditorScreen> {
 
   Widget _slotRow(MealSlot slot) {
     final target = _targets[slot] ?? const MealTarget();
-    Widget field(String label, double value, void Function(double) apply) => Expanded(
-          child: TextFormField(
-            key: ValueKey('${slot.value}_$label${value.round()}'),
-            initialValue: value == 0 ? '' : value.round().toString(),
+    Widget field(String macro) => Expanded(
+          child: TextField(
+            controller: _cells['${slot.value}_$macro'],
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(labelText: label, isDense: true),
-            onChanged: (v) => setState(() => apply(double.tryParse(v.replaceAll(',', '.')) ?? 0)),
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(labelText: macro, isDense: true),
+            onChanged: (v) => setState(
+              () => _setMacro(slot, macro, double.tryParse(v.replaceAll(',', '.')) ?? 0),
+            ),
           ),
         );
 
@@ -276,11 +329,11 @@ class _MacroPlanEditorScreenState extends State<MacroPlanEditorScreen> {
           ),
           const SizedBox(height: 8),
           Row(children: [
-            field('P', target.proteinG, (v) => _targets[slot] = target.copyWith(proteinG: v)),
+            field('P'),
             const SizedBox(width: 8),
-            field('C', target.carbsG, (v) => _targets[slot] = target.copyWith(carbsG: v)),
+            field('C'),
             const SizedBox(width: 8),
-            field('G', target.fatG, (v) => _targets[slot] = target.copyWith(fatG: v)),
+            field('G'),
           ]),
         ],
       ),

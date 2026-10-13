@@ -10,6 +10,7 @@ import '../../core/links.dart';
 import '../../core/models.dart';
 import '../../core/recipe_service.dart';
 import '../../core/supabase.dart';
+import '../../core/feedback.dart';
 import '../chat/chat_screen.dart';
 import '../recipes/recipe_detail_screen.dart';
 
@@ -90,7 +91,7 @@ class _NutritionistPublicScreenState extends State<NutritionistPublicScreen> {
         ),
       );
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     } finally {
       if (mounted) setState(() => _starting = false);
     }

@@ -9,6 +9,7 @@ import '../../core/theme.dart';
 
 import '../../core/account_service.dart';
 import '../../core/models.dart';
+import '../../core/feedback.dart';
 import 'profile_widgets.dart';
 
 /// Dati dell'account: nome visualizzato, lingua, email, password.
@@ -92,7 +93,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
         ),
       );
     } on AppError catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      if (mounted) showAppError(context, e);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -149,7 +150,7 @@ class _AccountDetailsScreenState extends State<AccountDetailsScreen> {
     } on AppError catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      showAppError(context, e);
     }
   }
 

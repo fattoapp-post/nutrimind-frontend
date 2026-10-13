@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 
-import '../../core/app_error.dart';
+import '../../core/feedback.dart';
 
 /// Nomi usati dalle pagine del profilo. I colori arrivano dalla
 /// tavolozza scelta dall'utente (core/theme.dart): da leggere dentro
@@ -165,16 +165,11 @@ class MenuItem extends StatelessWidget {
 }
 
 /// Esegue un'azione con snackbar di esito; restituisce true se è riuscita.
-Future<bool> runWithFeedback(BuildContext context, Future<void> Function() action, {String? success}) async {
-  final messenger = ScaffoldMessenger.of(context);
-  try {
-    await action();
-    if (success != null) messenger.showSnackBar(SnackBar(content: Text(success)));
-    return true;
-  } on AppError catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    return false;
-  }
+/// Gli errori vanno in finestra, non in snackbar: uno snackbar sparisce
+/// da solo e un salvataggio fallito passa inosservato. Le conferme
+/// restano snackbar. Vedi `core/feedback.dart`.
+Future<bool> runWithFeedback(BuildContext context, Future<void> Function() action, {String? success}) {
+  return runGuarded(context, action, success: success);
 }
 
 /// Selettore a chip multipli su un insieme chiave -> etichetta.
